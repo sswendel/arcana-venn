@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcana Venn: O Círculo da Convergência</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #05030d; color: #f0e6d2; }
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* UI Overlay - Clean & Uncluttered */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 12px 16px;
+        }
+        .interactive { pointer-events: auto; }
+
+        /* Top Bar: Compact Navigation & Difficulty */
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 8px; margin-bottom: 8px; flex-wrap: wrap;
+        }
+        .chamber-pills {
+            display: flex; gap: 5px; flex-wrap: wrap;
+            background: rgba(12, 8, 26, 0.78); border: 1px solid rgba(124, 104, 176, 0.45);
+            padding: 4px 8px; border-radius: 10px; backdrop-filter: blur(8px);
+        }
+        .chamber-pill {
+            background: rgba(34, 22, 64, 0.7); border: 1px solid rgba(107, 83, 166, 0.5);
+            color: #cfc2e8; padding: 4px 9px; border-radius: 6px;
+            font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: all 0.2s;
+        }
+        .chamber-pill:hover { background: #4e358c; color: #fff; }
+        .chamber-pill.active {
+            background: linear-gradient(135deg, #f5c542, #c99318);
+            color: #120c24; border-color: #fff; box-shadow: 0 0 10px rgba(245, 197, 66, 0.5);
+        }
+        .chamber-pill.completed { border-color: #2ecc71; color: #a3f7bf; }
+
+        .mode-bar {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(12, 8, 26, 0.78); border: 1px solid rgba(124, 104, 176, 0.45);
+            padding: 4px 10px; border-radius: 10px; backdrop-filter: blur(8px);
+            font-size: 0.76rem;
+        }
+        .mode-btn {
+            background: rgba(35, 24, 65, 0.75); border: 1px solid #6b53a6;
+            color: #dcd2e8; padding: 4px 9px; border-radius: 6px;
+            cursor: pointer; font-size: 0.74rem; font-weight: bold; transition: all 0.2s;
+        }
+        .mode-btn.active {
+            background: linear-gradient(135deg, #7b2cbf, #480ca8);
+            border-color: #00e5ff; color: #fff;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+        }
+        .mana-shields {
+            color: #ff6b8b; font-weight: bold; font-size: 0.8rem; margin-left: 4px;
+            letter-spacing: 1px;
+        }
+
+        /* Top HUD: Compact Left Card & Right Legend */
+        .hud-top {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            gap: 12px; pointer-events: none;
+        }
+        .grimoire-panel {
+            background: rgba(14, 9, 30, 0.82); border: 1.5px solid rgba(157, 124, 56, 0.75);
+            border-radius: 12px; padding: 11px 15px; max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px);
+        }
+        .level-badge { color: #f5c542; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.4px; font-weight: bold; margin-bottom: 2px; }
+        .level-title { font-size: 1.08rem; font-weight: bold; margin: 0 0 5px 0; color: #fff; }
+        .mission-text { font-size: 0.82rem; line-height: 1.38; color: #d5cae6; margin-bottom: 7px; }
+        .math-rule {
+            background: rgba(0, 0, 0, 0.45); border-left: 3px solid #00e5ff;
+            padding: 5px 9px; font-family: monospace; font-size: 0.83rem;
+            color: #80f0ff; border-radius: 0 6px 6px 0;
+        }
+
+        /* Right Column: Legend + Tutorial Coach (ONLY in Chamber 0) + Chamber 4 Crank */
+        .right-column {
+            display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+            max-width: 340px;
+        }
+        .legend-panel {
+            background: rgba(14, 9, 30, 0.8); border: 1px solid rgba(90, 70, 140, 0.65);
+            border-radius: 10px; padding: 9px 13px; min-width: 215px;
+            backdrop-filter: blur(8px);
+        }
+        .legend-title { font-size: 0.74rem; font-weight: bold; color: #b8a6db; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.8px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; margin-bottom: 4px; }
+        .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .orbit-badge {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(124, 104, 176, 0.3);
+            font-size: 0.74rem; color: #a99bc9; gap: 8px;
+        }
+        .mini-reset-view {
+            background: rgba(0, 229, 255, 0.14); border: 1px solid rgba(0, 229, 255, 0.5);
+            color: #80f0ff; border-radius: 5px; padding: 2px 7px; font-size: 0.7rem;
+            cursor: pointer; font-weight: bold;
+        }
+        .mini-reset-view:hover { background: rgba(0, 229, 255, 0.3); color: #fff; }
+
+        /* Tutorial Coach - Appears ONLY in Chamber 0 on the right side */
+        #tutorial-coach {
+            background: linear-gradient(135deg, rgba(22, 14, 48, 0.92), rgba(12, 24, 48, 0.92));
+            border: 1.5px solid #00e5ff; border-radius: 11px; padding: 10px 13px;
+            width: 330px; box-shadow: 0 0 20px rgba(0, 229, 255, 0.25);
+            backdrop-filter: blur(8px); transition: all 0.3s;
+        }
+        .coach-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .coach-title { color: #00e5ff; font-weight: bold; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.8px; }
+        .coach-step-dots { display: flex; gap: 4px; }
+        .step-dot { width: 16px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.2); transition: all 0.3s; }
+        .step-dot.done { background: #2ecc71; box-shadow: 0 0 5px #2ecc71; }
+        .step-dot.current { background: #f5c542; box-shadow: 0 0 7px #f5c542; width: 24px; }
+        .coach-instruction {
+            font-size: 0.82rem; color: #fff; line-height: 1.38; margin-bottom: 6px;
+            background: rgba(0,0,0,0.32); padding: 7px 9px; border-radius: 7px;
+            border-left: 3px solid #f5c542;
+        }
+        .coach-progress-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 0.75rem; color: #a3f7bf; }
+        .coach-mini-btn {
+            background: rgba(0, 229, 255, 0.18); border: 1px solid #00e5ff;
+            color: #fff; padding: 3px 8px; border-radius: 5px; cursor: pointer;
+            font-size: 0.72rem; font-weight: bold;
+        }
+        .coach-mini-btn:hover { background: rgba(0, 229, 255, 0.38); }
+
+        /* Crank Control for Chamber 4 */
+        #crank-panel {
+            background: rgba(28, 18, 42, 0.9); border: 1.5px solid #f5c542;
+            border-radius: 10px; padding: 9px 13px; width: 270px;
+            box-shadow: 0 0 16px rgba(245, 197, 66, 0.25); backdrop-filter: blur(8px);
+        }
+        .crank-slider { width: 100%; accent-color: #f5c542; cursor: pointer; margin: 4px 0; }
+
+        /* Diagnostic Error Hint Box */
+        #grimoire-diagnostic {
+            background: rgba(68, 14, 24, 0.92); border: 1.5px solid #ff4d6d;
+            border-radius: 10px; padding: 9px 12px; max-width: 320px;
+            box-shadow: 0 0 18px rgba(255, 77, 109, 0.35);
+            font-size: 0.8rem; line-height: 1.36; color: #ffd6de;
+        }
+
+        /* Sleek Unified Bottom Dock */
+        .hud-bottom {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 10px; flex-wrap: wrap;
+            background: rgba(10, 6, 24, 0.86);
+            border: 1px solid rgba(124, 104, 176, 0.45);
+            border-radius: 12px; padding: 8px 14px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.6);
+        }
+        .crystal-inspector {
+            display: flex; flex-direction: column; justify-content: center;
+            min-width: 240px; max-width: 340px;
+            border-left: 3px solid #00e5ff; padding-left: 10px;
+        }
+
+        /* Constellation Orbs Bar (Linked to the Upper Celestial Arch in 3D!) */
+        #runic-altar-panel {
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+        }
+        .runic-switches { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+        .rune-switch {
+            background: rgba(24, 16, 48, 0.92); border: 1px solid #7c68b0;
+            color: #cfc2e8; padding: 5px 11px; border-radius: 20px;
+            font-size: 0.76rem; font-weight: bold; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center; gap: 5px;
+        }
+        .rune-switch:hover { border-color: #f5c542; color: #fff; transform: translateY(-1px); }
+        .rune-switch.lit {
+            background: linear-gradient(135deg, #c99318, #f5c542);
+            border-color: #fff; color: #120c24;
+            box-shadow: 0 0 14px rgba(245, 197, 66, 0.75);
+        }
+
+        .btn-group { display: flex; gap: 8px; align-items: center; }
+        .arcane-btn {
+            background: linear-gradient(135deg, #6b3fa0, #3a1c71);
+            border: 1.5px solid #f5c542; color: #fff; padding: 9px 16px;
+            font-size: 0.88rem; font-weight: bold; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 0 12px rgba(107, 63, 160, 0.5);
+        }
+        .arcane-btn:hover { transform: translateY(-1px); box-shadow: 0 0 20px rgba(245, 197, 66, 0.75); background: linear-gradient(135deg, #834ec4, #4e2696); }
+        .arcane-btn.secondary { background: rgba(30, 22, 54, 0.85); border-color: #7c68b0; font-size: 0.78rem; padding: 7px 11px; }
+
+        @keyframes pulseGold {
+            0% { box-shadow: 0 0 6px #f5c542, 0 0 0 0 rgba(245, 197, 66, 0.65); }
+            70% { box-shadow: 0 0 18px #f5c542, 0 0 0 8px rgba(245, 197, 66, 0); }
+            100% { box-shadow: 0 0 6px #f5c542, 0 0 0 0 rgba(245, 197, 66, 0); }
+        }
+        .tutorial-spotlight { animation: pulseGold 1.5s infinite !important; border-color: #f5c542 !important; }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 3, 12, 0.86); z-index: 10;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(8px); padding: 16px;
+        }
+        .modal-card {
+            background: linear-gradient(180deg, #1b1236 0%, #0e091f 100%);
+            border: 2px solid #f5c542; border-radius: 16px; padding: 22px 26px;
+            max-width: 700px; width: 100%; max-height: 92vh; overflow-y: auto;
+            text-align: center; box-shadow: 0 0 50px rgba(157, 124, 56, 0.5);
+        }
+        .modal-card h1 { color: #f5c542; margin: 0 0 6px 0; font-size: 1.8rem; text-shadow: 0 0 15px rgba(245, 197, 66, 0.4); }
+        .modal-card p { color: #ddd2ed; line-height: 1.5; font-size: 0.94rem; margin-bottom: 12px; }
+        .modal-tabs { display: flex; justify-content: center; gap: 10px; margin: 10px 0 14px 0; flex-wrap: wrap; }
+        .modal-tab {
+            background: rgba(40, 28, 74, 0.8); border: 1px solid #7c68b0;
+            color: #cfc2e8; padding: 7px 14px; border-radius: 8px;
+            cursor: pointer; font-weight: bold; font-size: 0.84rem;
+        }
+        .modal-tab.active { background: #f5c542; color: #120c24; border-color: #fff; }
+        .tutorial-grid, .symbols-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            text-align: left; margin: 12px 0; background: rgba(0,0,0,0.35);
+            padding: 12px; border-radius: 10px; border: 1px solid #453370;
+        }
+        .tutorial-step, .symbol-card { font-size: 0.84rem; color: #cfc2e8; line-height: 1.4; }
+        .tutorial-step strong { color: #00e5ff; display: block; margin-bottom: 2px; font-size: 0.9rem; }
+        .symbol-card { background: rgba(0,0,0,0.4); border: 1px solid #5a468c; border-radius: 8px; padding: 9px 11px; }
+        .symbol-card b { color: #f5c542; font-size: 0.95rem; font-family: monospace; }
+
+        /* Toast Feedback */
+        #feedback-toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            padding: 16px 26px; border-radius: 12px; font-size: 1.05rem; font-weight: bold;
+            z-index: 8; pointer-events: none; opacity: 0;
+            transition: opacity 0.3s, transform 0.3s; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); max-width: 520px;
+        }
+        .toast-success { background: rgba(14, 72, 44, 0.96); border: 2px solid #2ecc71; color: #a3f7bf; }
+        .toast-error { background: rgba(88, 16, 26, 0.96); border: 2px solid #e74c3c; color: #ffccd2; }
+        .hidden { display: none !important; }
+
+        @media (max-width: 850px) {
+            .tutorial-grid, .symbols-grid { grid-template-columns: 1fr; }
+            .grimoire-panel { max-width: 100%; }
+            #tutorial-coach { width: 100%; }
+        }
+    </style>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<!-- Interface Principal Limpa -->
+<div id="ui-layer">
+    <div>
+        <!-- Barra Superior Compacta -->
+        <div class="top-bar interactive">
+            <div class="chamber-pills" id="chamber-nav"></div>
+            <div class="mode-bar">
+                <span style="color:#b8a6db; font-weight:bold;">Modo:</span>
+                <button class="mode-btn active" id="mode-normal-btn" onclick="setDifficultyMode('arcano')" title="Mostra dicas de divisibilidade no Olho de Venn e nomes descritivos nas Esferas">🔮 Arcano (Sem Cola)</button>
+                <button class="mode-btn" id="mode-hard-btn" onclick="setDifficultyMode('arquimago')" title="Notação matemática formal nas Esferas, cálculo mental puro no Inspetor e 3 Escudos de Mana!">🔥 Arquimago Mestre</button>
+                <span id="shields-display" class="mana-shields hidden" title="Escudos de Mana restantes nesta câmara">🛡️🛡️🛡️</span>
+                <span id="score-display" style="margin-left:4px; color:#f5c542; font-weight:bold;">⭐ 0/21</span>
+            </div>
+        </div>
+
+        <div class="hud-top">
+            <!-- Painel da Câmara (Esquerda) -->
+            <div class="grimoire-panel interactive">
+                <div class="level-badge" id="ui-badge">Câmara 0 de 6 • Tutorial</div>
+                <h2 class="level-title" id="ui-title">Pertinência Elemental</h2>
+                <div class="mission-text" id="ui-story">Carregando grimório...</div>
+                <div class="math-rule" id="ui-math">Regra Arcana: x ∈ A</div>
+            </div>
+
+            <!-- Coluna Direita: Legenda + Rotação 360° + Guia do Tutorial (SÓ na Câmara 0!) + Manivela (SÓ na Câmara 4) -->
+            <div class="right-column interactive">
+                <div class="legend-panel">
+                    <div class="legend-title">Esferas em Órbita (Giro 360°)</div>
+                    <div id="ui-spheres-legend"></div>
+                    <div class="orbit-badge">
+                        <span id="orbit-angle-label">🔄 Órbita 3D: 0° (Base Fixa)</span>
+                        <button class="mini-reset-view" onclick="resetAstrolabeRotation()" title="Alinhar Esferas de frente">🧭 Centralizar</button>
+                    </div>
+                </div>
+
+                <!-- Guia Passo a Passo do Mentor (EXCLUSIVO do Tutorial - Câmara 0) -->
+                <div id="tutorial-coach">
+                    <div class="coach-header">
+                        <div class="coach-title">🧙‍♂️ Guia do Tutorial (Câmara 0)</div>
+                        <div class="coach-step-dots" id="coach-dots"></div>
+                    </div>
+                    <div class="coach-instruction" id="coach-text">
+                        Carregando passo...
+                    </div>
+                    <div class="coach-progress-row">
+                        <span id="coach-status">Aguardando ação...</span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="coach-mini-btn" onclick="prevTutorialStep()">◀ Ant.</button>
+                            <button class="coach-mini-btn" onclick="nextTutorialStep()">Próx. Passo ▶</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manivela Astral Exclusiva da Câmara 4 -->
+                <div id="crank-panel" class="hidden">
+                    <div class="legend-title" style="color:#f5c542;">⚙️ Manivela Astral 3D (A ⊂ B)</div>
+                    <div style="font-size:0.76rem; color:#e0d4f5; margin-bottom:3px;">
+                        Gire a engrenagem astral para mover a <strong>Esfera A</strong> para dentro de <strong>B</strong>:
+                    </div>
+                    <input type="range" id="subset-crank" class="crank-slider" min="0" max="100" value="0" oninput="onCrankChange(this.value)">
+                    <div id="crank-status" style="font-size:0.76rem; font-weight:bold; color:#ff9966;">
+                        Órbita de A: Fora de B (0%)
+                    </div>
+                </div>
+
+                <!-- Diagnóstico de Erro do Grimório (só abre quando erra) -->
+                <div id="grimoire-diagnostic" class="hidden">
+                    <div style="font-weight:bold; color:#ff8fa3; margin-bottom:2px;">📖 Diagnóstico do Grimório:</div>
+                    <div id="diagnostic-text"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Doca Inferior Unificada e Limpa -->
+    <div class="hud-bottom interactive">
+        <!-- Inspetor Olho de Venn -->
+        <div class="crystal-inspector" id="inspector-box">
+            <div style="font-size:0.72rem; font-weight:bold; color:#00e5ff; text-transform:uppercase; letter-spacing:0.8px;">
+                👁️ Olho de Venn (Inspeção)
+            </div>
+            <div id="inspector-text" style="font-size: 0.82rem; color: #fff; line-height: 1.32;">
+                Passe o mouse ou toque num cristal na base fixa para ler sua essência.
+            </div>
+        </div>
+
+        <!-- Constelação de Sintonia (Aciona os Astros de Luz no Arco Celeste Superior fora da plataforma!) -->
+        <div id="runic-altar-panel">
+            <div style="font-size:0.7rem; color:#f5c542; font-weight:bold; text-transform:uppercase; letter-spacing:0.6px;" id="runic-altar-title"><span id="runic-altar-subtitle">✨ Constelação de Sintonia (Acione os Astros Celestes no Arco Superior):</span></div>
+            <div class="runic-switches" id="runic-switches-container"></div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="btn-group">
+            <button class="arcane-btn secondary" id="btn-toggle-coach" onclick="toggleCoachPanel()" title="Mostrar/Ocultar Guia do Mentor">🎓 Guia Passo a Passo</button>
+            <button class="arcane-btn secondary" onclick="toggleHelpModal()">📜 Grimório (Ajuda)</button>
+            <button class="arcane-btn secondary" onclick="resetCurrentLevel()">🔄 Reiniciar Cristais</button>
+            <button class="arcane-btn" id="btn-verify" onclick="verifyRitual()">⚡ Canalizar Feitiço (Validar)</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast de Feedback -->
+<div id="feedback-toast"></div>
+
+<!-- Modal de Enredo, Tutorial e Diferença de Modos -->
+<div id="intro-modal" class="modal-overlay interactive">
+    <div class="modal-card">
+        <h1>🔮 Arcana Venn</h1>
+        <h3 style="color: #00e5ff; margin: 0 0 10px 0;">O Círculo da Convergência • Alexandria Astral</h3>
+
+        <div class="modal-tabs">
+            <button class="modal-tab active" id="tab-btn-howto" onclick="switchModalTab('howto')">🧙‍♂️ Enredo & Tutorial Guiado</button>
+            <button class="modal-tab" id="tab-btn-symbols" onclick="switchModalTab('symbols')">📐 Guia Visual de Símbolos (∈, ∪, ∩, -, ⊂, Aᶜ)</button>
+        </div>
+
+        <!-- Aba 1: Como Jogar -->
+        <div id="modal-tab-howto">
+            <p>
+                Você é <strong>Kael</strong>, Aprendiz de Arquimago! Use o <strong>Astrolábio Giroscópico 3D</strong> para restaurar as Esferas da Essência na Grande Biblioteca de Alexandria Astral.
+            </p>
+            <div class="tutorial-grid">
+                <div class="tutorial-step">
+                    <strong>1. Giro 360° Livre & Base Fixa</strong>
+                    Arraste o fundo estrelado para girar as Esferas em <strong>360° completos</strong> enquanto a plataforma do Altar e a bancada de cristais permanecem fixas!
+                </div>
+                <div class="tutorial-step">
+                    <strong>2. Efeito de Absorção nas Esferas</strong>
+                    Ao colocar um cristal dentro de uma Esfera, ela dispara uma <em>Onda de Energia 3D</em>, partículas mágicas e um feixe de mana pulsante ligado ao núcleo!
+                </div>
+                <div class="tutorial-step">
+                    <strong>3. Astros de Constelação (Fora do Altar)</strong>
+                    Acione as <strong>Estrelas de Constelação</strong> suspensas no Arco Celeste acima das esferas (clicando nelas no céu 3D ou na barra de Constelação) para projetar raios de luz sobre a operação pedida!
+                </div>
+                <div class="tutorial-step">
+                    <strong>4. Modos 🔮 Arcano vs 🔥 Arquimago Mestre</strong>
+                    No modo <em>Arquimago Mestre</em>, as Esferas usam <strong>notação formal</strong> (<code>{x ∈ ℕ | 30 mod x = 0}</code>), o Inspetor exige cálculo mental puro e você tem <strong>3 Escudos de Mana (🛡️)</strong>!
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba 2: Guia Visual de Símbolos -->
+        <div id="modal-tab-symbols" class="hidden">
+            <p style="font-size:0.88rem;">Consulte o significado dos símbolos matemáticos da Teoria dos Conjuntos:</p>
+            <div class="symbols-grid">
+                <div class="symbol-card">
+                    <b>x ∈ A  e  x ∉ A</b> (Pertinência)<br>
+                    • <strong>x ∈ A:</strong> O elemento pertence à Esfera A (conectado por feixe de luz a A).<br>
+                    • <strong>x ∉ A:</strong> O elemento fica fora da Esfera A.
+                </div>
+                <div class="symbol-card">
+                    <b>A ∪ B</b> (União)<br>
+                    Elementos que pertencem a <strong>A OU B</strong> (inclui Só A, a interseção A ∩ B e Só B).
+                </div>
+                <div class="symbol-card">
+                    <b>A ∩ B</b> (Interseção)<br>
+                    Elementos que pertencem a <strong>A E B simultaneamente</strong> (conectados por feixes às duas esferas ao mesmo tempo!).
+                </div>
+                <div class="symbol-card">
+                    <b>A - B</b> (Diferença)<br>
+                    Elementos que pertencem <strong>exclusivamente a A</strong> e NÃO tocam na Esfera B.
+                </div>
+                <div class="symbol-card">
+                    <b>A ⊂ B</b> (Subconjunto / Inclusão)<br>
+                    A Esfera A inteira orbita <strong>dentro da Esfera B</strong>. Todo elemento de A também pertence a B!
+                </div>
+                <div class="symbol-card">
+                    <b>Aᶜ = U - A</b> (Complementar)<br>
+                    Elementos que estão dentro da Cúpula do <strong>Universo (U)</strong>, mas <strong>fora da Esfera A</strong>.
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:12px; margin-top:12px;">
+            <button class="arcane-btn" onclick="closeIntroModal()">Iniciar Jornada Arcana ✨</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// =========================================================
+// 1. SINTETIZADOR DE ÁUDIO ARCANO (Web Audio API)
+// =========================================================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type = 'sine', duration = 0.25, gainVal = 0.14) {
+    try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+}
+
+function sfxPickup() { playTone(540, 'triangle', 0.11, 0.12); }
+function sfxDrop() { playTone(680, 'sine', 0.16, 0.14); }
+function sfxSphereEnter(zoneCount) {
+    // Som cristalino harmônico quando um cristal entra numa esfera ou interseção!
+    const baseFreq = zoneCount >= 2 ? 880 : 659.25;
+    playTone(baseFreq, 'sine', 0.28, 0.16);
+    setTimeout(() => playTone(baseFreq * 1.25, 'triangle', 0.32, 0.14), 65);
+}
+function sfxStepComplete() {
+    [587.33, 880].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.22, 0.13), i * 85));
+}
+function sfxRuneToggle(on) {
+    playTone(on ? 784 : 392, 'triangle', 0.2, 0.14);
+}
+function sfxSuccess() {
+    [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((f, i) => {
+        setTimeout(() => playTone(f, 'triangle', 0.45, 0.17), i * 95);
+    });
+}
+function sfxError() {
+    [210, 175, 145].forEach((f, i) => {
+        setTimeout(() => playTone(f, 'sawtooth', 0.35, 0.15), i * 125);
+    });
+}
+
+// =========================================================
+// 2. DEFINIÇÃO DAS 7 CÂMARAS (Astros Celestes no Arco Superior fora da Plataforma!)
+// =========================================================
+const LEVELS = [
+    {
+        badge: "Câmara 0 de 6 • Tutorial Guiado",
+        title: "Pertinência Elemental (∈ e ∉)",
+        story: "Coloque os 3 Cristais de Fogo (Pares) DENTRO da Esfera A (x ∈ A), deixe os 2 Cristais de Sombra (Ímpares) FORA (x ∉ A) e acione o Astro Celeste 'Região A' no Arco Superior!",
+        mathRule: "A = { x | x é Par }  •  Sombra (Ímpar) ∉ A",
+        masterMathRule: "A = { x ∈ ℕ | x ≡ 0 (mod 2) }  •  Alvo: { x ∈ A }",
+        spheres: [
+            { id: 'A', name: 'Esfera A (Fogo • Pares)', masterName: 'A = {x ∈ ℕ | 2 | x}', color: 0xff3366, pos: [0, 0.42, 0], radius: 2.1 }
+        ],
+        runicSwitches: [
+            { id: 'inA', label: '★ Astro A (x ∈ A)', required: true, checkZone: (z) => z.inA, starPos: [-1.45, 3.15, 0], targetBeamPos: [0, 0.42, 0] },
+            { id: 'outA', label: '★ Astro Exterior (x ∉ A)', required: false, checkZone: (z) => !z.inA, starPos: [1.45, 3.15, 0], targetBeamPos: [2.8, 0.42, 0] }
+        ],
+        runicPrompt: "✨ Constelação de Sintonia — Acione o Astro de Pertinência (x ∈ A):",
+        crystals: [
+            {
+                id: 1, label: "Fogo • 2", val: 2, color: 0xff5533, geoType: 'octa',
+                traits: "Elemento: Fogo | Número 2 (Par, divisível por 2)",
+                targetCheck: (z) => z.inA,
+                errorHint: "O Cristal 'Fogo • 2' é Par (2 ÷ 2 = 1). Logo, 2 ∈ A: arraste-o para DENTRO da Esfera Rubra A!"
+            },
+            {
+                id: 2, label: "Fogo • 4", val: 4, color: 0xff5533, geoType: 'octa',
+                traits: "Elemento: Fogo | Número 4 (Par, divisível por 2)",
+                targetCheck: (z) => z.inA,
+                errorHint: "O Cristal 'Fogo • 4' é Par (4 ∈ A). Arraste-o para dentro da Esfera A!"
+            },
+            {
+                id: 3, label: "Fogo • 8", val: 8, color: 0xff5533, geoType: 'octa',
+                traits: "Elemento: Fogo | Número 8 (Par, divisível por 2)",
+                targetCheck: (z) => z.inA,
+                errorHint: "O Cristal 'Fogo • 8' é Par (8 ∈ A). Coloque-o dentro da Esfera A!"
+            },
+            {
+                id: 4, label: "Sombra • 5", val: 5, color: 0x7788aa, geoType: 'icosa',
+                traits: "Elemento: Sombra | Número 5 (Ímpar, não divisível por 2)",
+                targetCheck: (z) => !z.inA,
+                errorHint: "O Cristal 'Sombra • 5' é Ímpar, logo NÃO pertence a A (5 ∉ A). Mantenha-o FORA da Esfera A!"
+            },
+            {
+                id: 5, label: "Sombra • 9", val: 9, color: 0x7788aa, geoType: 'icosa',
+                traits: "Elemento: Sombra | Número 9 (Ímpar, 9 = 3×3)",
+                targetCheck: (z) => !z.inA,
+                errorHint: "O Cristal 'Sombra • 9' é Ímpar (9 ∉ A). Deixe-o fora da Esfera A!"
+            }
+        ]
+    },
+    {
+        badge: "Câmara 1 de 6 • A Fusão Elemental (União: A ∪ B)",
+        title: "A Ponte da União (A ∪ B)",
+        story: "Posicione os 7 cristais entre A (Pares) e B (Divisores de 30). Depois, acione na Constelação Superior os 3 Astros que iluminam toda a UNIÃO (A ∪ B)!",
+        mathRule: "A = {Pares} • B = {Divisores de 30} • Alvo: A ∪ B = { x | x ∈ A ou x ∈ B }",
+        masterMathRule: "A = {2k} • B = {x ∈ ℕ | 30 mod x = 0} • Alvo: A ∪ B",
+        spheres: [
+            { id: 'A', name: 'Esfera A (Pares)', masterName: 'A = {x | x mod 2 = 0}', color: 0xff5500, pos: [-1.3, 0.42, 0], radius: 2.05 },
+            { id: 'B', name: 'Esfera B (Divisores de 30)', masterName: 'B = {x | 30 mod x = 0}', color: 0x00d5ff, pos: [1.3, 0.42, 0], radius: 2.05 }
+        ],
+        runicSwitches: [
+            { id: 'onlyA', label: '★ Só A (A - B)', required: true, checkZone: (z) => z.inA && !z.inB, starPos: [-2.7, 3.05, 0], targetBeamPos: [-1.8, 0.42, 0] },
+            { id: 'interAB', label: '★ Interseção (A ∩ B)', required: true, checkZone: (z) => z.inA && z.inB, starPos: [-0.9, 3.28, 0], targetBeamPos: [0, 0.42, 0] },
+            { id: 'onlyB', label: '★ Só B (B - A)', required: true, checkZone: (z) => !z.inA && z.inB, starPos: [0.9, 3.28, 0], targetBeamPos: [1.8, 0.42, 0] },
+            { id: 'ext', label: '★ Exterior', required: false, checkZone: (z) => !z.inA && !z.inB, starPos: [2.7, 3.05, 0], targetBeamPos: [3.2, 0.42, 0] }
+        ],
+        runicPrompt: "✨ Constelação de Sintonia — Acenda os 3 Astros que formam a UNIÃO (A ∪ B):",
+        crystals: [
+            {
+                id: 1, label: "Cristal 4", val: 4, color: 0xd4a373, geoType: 'octa',
+                traits: "Número 4 | Par? Sim | Divide 30? (30 ÷ 4 = 7,5 → Não)",
+                targetCheck: (z) => z.inA && !z.inB,
+                errorHint: "Cristal 4: 4 é Par (∈ A), mas 30 ÷ 4 = 7,5 (∉ B). Deve ficar exclusivamente em A!"
+            },
+            {
+                id: 2, label: "Cristal 8", val: 8, color: 0xd4a373, geoType: 'octa',
+                traits: "Número 8 | Par? Sim | Divide 30? (30 ÷ 8 = 3,75 → Não)",
+                targetCheck: (z) => z.inA && !z.inB,
+                errorHint: "Cristal 8: 8 é Par (∈ A), mas não divide 30 (∉ B). Posicione-o apenas na Esfera A!"
+            },
+            {
+                id: 3, label: "Cristal 6", val: 6, color: 0xd4a373, geoType: 'dodeca',
+                traits: "Número 6 | Par? Sim | Divide 30? (30 ÷ 6 = 5 → Sim!)",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Cristal 6: 6 é Par (∈ A) E divide 30 (∈ B)! Deve ficar na interseção central (A ∩ B)!"
+            },
+            {
+                id: 4, label: "Cristal 10", val: 10, color: 0xd4a373, geoType: 'dodeca',
+                traits: "Número 10 | Par? Sim | Divide 30? (30 ÷ 10 = 3 → Sim!)",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Cristal 10: 10 é Par (∈ A) E divide 30 (∈ B). Arraste-o para a lente central (A ∩ B)!"
+            },
+            {
+                id: 5, label: "Cristal 15", val: 15, color: 0xd4a373, geoType: 'icosa',
+                traits: "Número 15 | Par? Não (Ímpar) | Divide 30? (30 ÷ 15 = 2 → Sim!)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Cristal 15: 15 divide 30 (∈ B), mas é Ímpar (∉ A). Deve ficar exclusivamente na Esfera B!"
+            },
+            {
+                id: 6, label: "Cristal 5", val: 5, color: 0xd4a373, geoType: 'icosa',
+                traits: "Número 5 | Par? Não (Ímpar) | Divide 30? (30 ÷ 5 = 6 → Sim!)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Cristal 5: 5 divide 30 (∈ B), mas é Ímpar (∉ A). Coloque-o na parte exclusiva de B!"
+            },
+            {
+                id: 7, label: "Cristal 7", val: 7, color: 0xd4a373, geoType: 'tetra',
+                traits: "Número 7 | Par? Não | Divide 30? Não",
+                targetCheck: (z) => !z.inA && !z.inB,
+                errorHint: "Armadilha! O Cristal 7 é Ímpar (∉ A) e não divide 30 (∉ B). Mantenha-o no Exterior!"
+            }
+        ]
+    },
+    {
+        badge: "Câmara 2 de 6 • O Núcleo Puro (Interseção: A ∩ B)",
+        title: "A Lente da Interseção (A ∩ B)",
+        story: "A Esfera A aceita Múltiplos de 3; a Esfera B aceita Pares MAIORES que 10. Posicione os 7 cristais e acione na Constelação apenas o Astro da Interseção (A ∩ B)!",
+        mathRule: "A = {Múltiplos de 3} • B = {Pares > 10} • Alvo: A ∩ B",
+        masterMathRule: "A = {3k | k ∈ ℕ} • B = {2n | n > 5} • Alvo: A ∩ B",
+        spheres: [
+            { id: 'A', name: 'Esfera A (Múltiplos de 3)', masterName: 'A = {x | 3 | x}', color: 0xff2a85, pos: [-1.3, 0.42, 0], radius: 2.05 },
+            { id: 'B', name: 'Esfera B (Pares > 10)', masterName: 'B = {2n | 2n > 10}', color: 0x00ffcc, pos: [1.3, 0.42, 0], radius: 2.05 }
+        ],
+        runicSwitches: [
+            { id: 'onlyA', label: '★ Só A (A - B)', required: false, checkZone: (z) => z.inA && !z.inB, starPos: [-2.7, 3.05, 0], targetBeamPos: [-1.8, 0.42, 0] },
+            { id: 'interAB', label: '★ Interseção (A ∩ B)', required: true, checkZone: (z) => z.inA && z.inB, starPos: [-0.9, 3.28, 0], targetBeamPos: [0, 0.42, 0] },
+            { id: 'onlyB', label: '★ Só B (B - A)', required: false, checkZone: (z) => !z.inA && z.inB, starPos: [0.9, 3.28, 0], targetBeamPos: [1.8, 0.42, 0] },
+            { id: 'ext', label: '★ Exterior', required: false, checkZone: (z) => !z.inA && !z.inB, starPos: [2.7, 3.05, 0], targetBeamPos: [3.2, 0.42, 0] }
+        ],
+        runicPrompt: "✨ Constelação de Sintonia — Ilumine APENAS o Astro central da Interseção (A ∩ B):",
+        crystals: [
+            {
+                id: 1, label: "Runa 12", val: 12, color: 0xb388ff, geoType: 'dodeca',
+                traits: "Número 12 | Múlt. de 3 (3×4) | Par e 12 > 10",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Runa 12: 12 é múltiplo de 3 (∈ A) E par maior que 10 (∈ B). Coloque-o na lente central (A ∩ B)!"
+            },
+            {
+                id: 2, label: "Runa 18", val: 18, color: 0xb388ff, geoType: 'dodeca',
+                traits: "Número 18 | Múlt. de 3 (3×6) | Par e 18 > 10",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Runa 18: 18 pertence a A e a B simultaneamente. Coloque-o na interseção central (A ∩ B)!"
+            },
+            {
+                id: 3, label: "Runa 24", val: 24, color: 0xb388ff, geoType: 'dodeca',
+                traits: "Número 24 | Múlt. de 3 (3×8) | Par e 24 > 10",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Runa 24: 24 é múltiplo de 3 e par > 10. Deve ficar na interseção (A ∩ B)!"
+            },
+            {
+                id: 4, label: "Runa 6", val: 6, color: 0xb388ff, geoType: 'octa',
+                traits: "Número 6 | Múlt. de 3 (3×2) | Par, MAS 6 < 10!",
+                targetCheck: (z) => z.inA && !z.inB,
+                errorHint: "Pegadinha! A Runa 6 é múltiplo de 3 e par, MAS não é maior que 10 (6 ∉ B). Coloque o 6 APENAS em A!"
+            },
+            {
+                id: 5, label: "Runa 15", val: 15, color: 0xb388ff, geoType: 'octa',
+                traits: "Número 15 | Múlt. de 3 (3×5) | Maior que 10, mas ÍMPAR!",
+                targetCheck: (z) => z.inA && !z.inB,
+                errorHint: "Runa 15: 15 é múltiplo de 3 (∈ A), mas é Ímpar (∉ B). Deve ficar na região exclusiva de A!"
+            },
+            {
+                id: 6, label: "Runa 14", val: 14, color: 0xb388ff, geoType: 'icosa',
+                traits: "Número 14 | Não é Múlt. de 3 | Par e 14 > 10",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Runa 14: 14 é par > 10 (∈ B), mas não é divisível por 3 (∉ A). Posicione-o exclusivamente em B!"
+            },
+            {
+                id: 7, label: "Runa 8", val: 8, color: 0xb388ff, geoType: 'tetra',
+                traits: "Número 8 | Não é Múlt. de 3 | Par, mas 8 < 10!",
+                targetCheck: (z) => !z.inA && !z.inB,
+                errorHint: "Armadilha! O 8 não é múltiplo de 3 (∉ A) e não é maior que 10 (∉ B). Deixe-o no Exterior!"
+            }
+        ]
+    },
+    {
+        badge: "Câmara 3 de 6 • A Purificação (Diferença: A - B)",
+        title: "O Filtro da Diferença (A - B)",
+        story: "A Esfera B (Múltiplos de 3) foi corrompida! A Esfera A guarda os Divisores de 36. Isole os cristais puros em A - B e acenda apenas o Astro da Diferença Pura (A - B)!",
+        mathRule: "A = {Divisores de 36} • B = {Múltiplos de 3} • Alvo: A - B = { x ∈ A | x ∉ B }",
+        masterMathRule: "A = {x | 36 mod x = 0} • B = {3k} • Alvo: A \\ B",
+        spheres: [
+            { id: 'A', name: 'Esfera A (Divisores de 36)', masterName: 'A = {x | 36 mod x = 0}', color: 0xffd700, pos: [-1.3, 0.42, 0], radius: 2.05 },
+            { id: 'B', name: 'Esfera B (Corrompida: Múlt. 3)', masterName: 'B = {x | 3 | x}', color: 0x9d4edd, pos: [1.3, 0.42, 0], radius: 2.05 }
+        ],
+        runicSwitches: [
+            { id: 'onlyA', label: '★ Diferença Pura (A - B)', required: true, checkZone: (z) => z.inA && !z.inB, starPos: [-2.7, 3.05, 0], targetBeamPos: [-1.8, 0.42, 0] },
+            { id: 'interAB', label: '★ Contaminados (A ∩ B)', required: false, checkZone: (z) => z.inA && z.inB, starPos: [-0.9, 3.28, 0], targetBeamPos: [0, 0.42, 0] },
+            { id: 'onlyB', label: '★ Só B (B - A)', required: false, checkZone: (z) => !z.inA && z.inB, starPos: [0.9, 3.28, 0], targetBeamPos: [1.8, 0.42, 0] },
+            { id: 'ext', label: '★ Exterior', required: false, checkZone: (z) => !z.inA && !z.inB, starPos: [2.7, 3.05, 0], targetBeamPos: [3.2, 0.42, 0] }
+        ],
+        runicPrompt: "✨ Constelação de Sintonia — Acenda APENAS o Astro da Diferença Pura (A - B):",
+        crystals: [
+            {
+                id: 1, label: "Cristal 1", val: 1, color: 0xffe066, geoType: 'octa',
+                traits: "Número 1 | 36 ÷ 1 = 36 (Divide 36) | Não é múltiplo de 3",
+                targetCheck: (z) => z.inA && !z.inB,
+                errorHint: "Cristal 1: O 1 divide 36 (∈ A) e não é múltiplo de 3 (∉ B). Pertence à zona pura A - B!"
+            },
+            {
+                id: 2, label: "Cristal 2", val: 2, color: 0xffe066, geoType: 'octa',
+                traits: "Número 2 | 36 ÷ 2 = 18 (Divide 36) | Não é múltiplo de 3",
+                targetCheck: (z) => z.inA && !z.inB,
+                errorHint: "Cristal 2: 2 divide 36 (∈ A) e não é múltiplo de 3 (∉ B). Coloque-o na parte exclusiva A - B!"
+            },
+            {
+                id: 3, label: "Cristal 4", val: 4, color: 0xffe066, geoType: 'octa',
+                traits: "Número 4 | 36 ÷ 4 = 9 (Divide 36) | Não é múltiplo de 3",
+                targetCheck: (z) => z.inA && !z.inB,
+                errorHint: "Cristal 4: 4 divide 36 (∈ A) e não é múltiplo de 3 (∉ B). Deve ficar na parte exclusiva A - B!"
+            },
+            {
+                id: 4, label: "Cristal 9", val: 9, color: 0xffe066, geoType: 'dodeca',
+                traits: "Número 9 | Divide 36 | 9 = 3 × 3 (Múltiplo de 3!)",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Cristal 9: 9 divide 36 (∈ A), MAS é múltiplo de 3 (∈ B). Deve ficar na interseção (A ∩ B)!"
+            },
+            {
+                id: 5, label: "Cristal 18", val: 18, color: 0xffe066, geoType: 'dodeca',
+                traits: "Número 18 | Divide 36 | 18 = 3 × 6 (Múltiplo de 3!)",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Cristal 18: 18 divide 36 (∈ A) e também é múltiplo de 3 (∈ B). Coloque-o na interseção (A ∩ B)!"
+            },
+            {
+                id: 6, label: "Cristal 15", val: 15, color: 0xffe066, geoType: 'icosa',
+                traits: "Número 15 | Não divide 36 | 15 = 3 × 5 (Múlt. de 3)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Cristal 15: 15 é múltiplo de 3 (∈ B), mas não divide 36 (∉ A). Deve ficar exclusivamente em B!"
+            },
+            {
+                id: 7, label: "Cristal 8", val: 8, color: 0xffe066, geoType: 'tetra',
+                traits: "Número 8 | 36 ÷ 8 = 4,5 (Não divide 36!) | Não é múlt. de 3",
+                targetCheck: (z) => !z.inA && !z.inB,
+                errorHint: "Pegadinha! 36 ÷ 8 = 4,5, logo 8 ∉ A e 8 ∉ B. Deixe o 8 no Exterior!"
+            }
+        ]
+    },
+    {
+        badge: "Câmara 4 de 6 • A Essência Contida (Subconjunto: A ⊂ B)",
+        title: "A Manivela da Inclusão (A ⊂ B)",
+        story: "Todo Múltiplo de 6 (Esfera A) é Par (Esfera B)! Primeiro, gire a MANIVELA ASTRAL à direita para mover a Esfera A inteira para dentro de B (A ⊂ B). Depois, posicione os 7 cristais!",
+        mathRule: "Subconjunto A ⊂ B: (∀x, x ∈ A ⇒ x ∈ B) • Use a Manivela para incluir A em B!",
+        masterMathRule: "A = {6k} ⊂ B = {2k} • Alvo: Incluir órbita de A em B e classificar elementos",
+        requiresCrank: true,
+        spheres: [
+            { id: 'B', name: 'Esfera Maior B (Todos os Pares)', masterName: 'B = {2k | k ∈ ℕ}', color: 0x00cc88, pos: [0.45, 0.42, 0], radius: 2.48 },
+            { id: 'A', name: 'Subconjunto A (Múlt. de 6) ⊂ B', masterName: 'A = {6k | k ∈ ℕ} ⊂ B', color: 0xffdd00, pos: [-3.1, 0.42, 0], targetPos: [-0.15, 0.42, 0], radius: 1.25 }
+        ],
+        runicSwitches: [
+            { id: 'coreA', label: '★ Núcleo A (A ⊂ B)', required: true, checkZone: (z) => z.inA && z.inB, starPos: [-2.1, 3.12, 0], targetBeamPos: [-0.15, 0.42, 0] },
+            { id: 'ringB', label: '★ Anel B - A (Pares não múlt. 6)', required: true, checkZone: (z) => !z.inA && z.inB, starPos: [0, 3.28, 0], targetBeamPos: [1.45, 0.42, 0] },
+            { id: 'ext', label: '★ Exterior (Ímpares ∉ B)', required: false, checkZone: (z) => !z.inA && !z.inB, starPos: [2.1, 3.12, 0], targetBeamPos: [3.1, 0.42, 0] }
+        ],
+        runicPrompt: "✨ Constelação de Sintonia — Acenda os dois Astros de B (Núcleo A e Anel B - A):",
+        crystals: [
+            {
+                id: 1, label: "Runa 6", val: 6, color: 0xffea70, geoType: 'dodeca',
+                traits: "Número 6 | Múltiplo de 6 (6×1) e consequentemente Par!",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Runa 6: 6 é múltiplo de 6 (∈ A ⊂ B). Gire a Manivela Astral até 100% e coloque o 6 dentro do núcleo A!"
+            },
+            {
+                id: 2, label: "Runa 12", val: 12, color: 0xffea70, geoType: 'dodeca',
+                traits: "Número 12 | Múltiplo de 6 (6×2) e consequentemente Par!",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Runa 12: 12 é múltiplo de 6! Deve ficar no núcleo interno A (dentro de B)."
+            },
+            {
+                id: 3, label: "Runa 18", val: 18, color: 0xffea70, geoType: 'dodeca',
+                traits: "Número 18 | Múltiplo de 6 (6×3) e consequentemente Par!",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Runa 18: 18 é múltiplo de 6 (∈ A e ∈ B). Coloque-o no núcleo interno A!"
+            },
+            {
+                id: 4, label: "Runa 4", val: 4, color: 0xffea70, geoType: 'octa',
+                traits: "Número 4 | É Par (∈ B), mas não é múltiplo de 6 (∉ A)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Runa 4: 4 é Par (∈ B), mas NÃO é múltiplo de 6 (∉ A). Deve ficar no anel de B, fora da esfera menor A!"
+            },
+            {
+                id: 5, label: "Runa 10", val: 10, color: 0xffea70, geoType: 'octa',
+                traits: "Número 10 | É Par (∈ B), mas não é múltiplo de 6 (∉ A)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Runa 10: 10 é Par (∈ B), mas não é múltiplo de 6 (∉ A). Posicione-o no anel B - A!"
+            },
+            {
+                id: 6, label: "Runa 9", val: 9, color: 0xffea70, geoType: 'tetra',
+                traits: "Número 9 | Múltiplo de 3, mas ÍMPAR (∉ B e ∉ A)!",
+                targetCheck: (z) => !z.inA && !z.inB,
+                errorHint: "Armadilha! A Runa 9 é ímpar: não pertence a B nem a A. Deixe-a no Exterior!"
+            },
+            {
+                id: 7, label: "Runa 15", val: 15, color: 0xffea70, geoType: 'tetra',
+                traits: "Número 15 | Número Ímpar (∉ B e ∉ A)",
+                targetCheck: (z) => !z.inA && !z.inB,
+                errorHint: "Runa 15: 15 é Ímpar (∉ B). Deixe-o no espaço exterior!"
+            }
+        ]
+    },
+    {
+        badge: "Câmara 5 de 6 • O Vazio Estelar (Complementar: Aᶜ em U)",
+        title: "O Domo do Universo (Complementar Aᶜ = U - A)",
+        story: "A Cúpula Azul é o Universo U (1 a 20) e o núcleo A guarda os Números Primos. Cuidado com o 1, o 9 e o 25! Ilumine na Constelação apenas o Astro do Complementar Aᶜ!",
+        mathRule: "U = {1..20} • A = {Primos em U} • Alvo: Aᶜ = U - A = { x ∈ U | x ∉ A }",
+        masterMathRule: "U = {x ∈ ℕ | 1 ≤ x ≤ 20} • A = {p ∈ U | p primo} • Alvo: Aᶜ = U \\ A",
+        spheres: [
+            { id: 'B', name: 'Cúpula Universo U (1 até 20)', masterName: 'U = {x ∈ ℕ | 1 ≤ x ≤ 20}', color: 0x3366ff, pos: [0, 0.42, 0], radius: 2.62 },
+            { id: 'A', name: 'Esfera A (Números Primos)', masterName: 'A = {p ∈ U | p é primo}', color: 0xff3366, pos: [0, 0.42, 0], radius: 1.32 }
+        ],
+        runicSwitches: [
+            { id: 'primeA', label: '★ Núcleo A (Primos)', required: false, checkZone: (z) => z.inA && z.inB, starPos: [-2.1, 3.12, 0], targetBeamPos: [0, 0.42, 0] },
+            { id: 'compAc', label: '★ Complementar Aᶜ (U - A)', required: true, checkZone: (z) => !z.inA && z.inB, starPos: [0, 3.28, 0], targetBeamPos: [1.85, 0.42, 0] },
+            { id: 'outU', label: '★ Fora do Universo (x ∉ U)', required: false, checkZone: (z) => !z.inB, starPos: [2.1, 3.12, 0], targetBeamPos: [3.2, 0.42, 0] }
+        ],
+        runicPrompt: "✨ Constelação de Sintonia — Acenda APENAS o Astro do Complementar (Aᶜ = U - A):",
+        crystals: [
+            {
+                id: 1, label: "Astrolábio 2", val: 2, color: 0x80bfff, geoType: 'dodeca',
+                traits: "Número 2 | Em U (1..20) | Único número PRIMO par!",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Astrolábio 2: O 2 é PRIMO! Portanto, 2 ∈ A: coloque-o no núcleo central A!"
+            },
+            {
+                id: 2, label: "Astrolábio 7", val: 7, color: 0x80bfff, geoType: 'dodeca',
+                traits: "Número 7 | Em U (1..20) | Divisores: 1 e 7 (Primo)",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Astrolábio 7: O 7 é Primo! Deve ficar dentro da Esfera central A."
+            },
+            {
+                id: 3, label: "Astrolábio 13", val: 13, color: 0x80bfff, geoType: 'dodeca',
+                traits: "Número 13 | Em U (1..20) | Divisores: 1 e 13 (Primo)",
+                targetCheck: (z) => z.inA && z.inB,
+                errorHint: "Astrolábio 13: O 13 é Primo! Coloque-o dentro do núcleo central A."
+            },
+            {
+                id: 4, label: "Astrolábio 1", val: 1, color: 0x80bfff, geoType: 'octa',
+                traits: "Número 1 | Em U (1..20) | Possui apenas UM divisor (não é primo!)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Pegadinha Clássica! O número 1 NÃO é primo. Como 1 ∈ U mas 1 ∉ A, coloque-o no anel do Complementar Aᶜ (dentro de U, fora de A)!"
+            },
+            {
+                id: 5, label: "Astrolábio 9", val: 9, color: 0x80bfff, geoType: 'octa',
+                traits: "Número 9 | Em U (1..20) | 9 = 3×3 (Composto, não é primo!)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Astrolábio 9: 9 = 3 × 3, logo não é primo! Pertence ao Complementar Aᶜ (dentro de U, fora de A)."
+            },
+            {
+                id: 6, label: "Astrolábio 15", val: 15, color: 0x80bfff, geoType: 'octa',
+                traits: "Número 15 | Em U (1..20) | 15 = 3 × 5 (Composto)",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Astrolábio 15: 15 é composto, logo pertence ao Complementar Aᶜ (dentro de U, fora de A)!"
+            },
+            {
+                id: 7, label: "Astrolábio 12", val: 12, color: 0x80bfff, geoType: 'octa',
+                traits: "Número 12 | Em U (1..20) | Par Composto",
+                targetCheck: (z) => !z.inA && z.inB,
+                errorHint: "Astrolábio 12: 12 pertence ao Complementar Aᶜ (anel azul U - A)!"
+            },
+            {
+                id: 8, label: "Astrolábio 25", val: 25, color: 0x80bfff, geoType: 'tetra',
+                traits: "Número 25 | ATENÇÃO: 25 > 20 (Fora do Universo U!)",
+                targetCheck: (z) => !z.inA && !z.inB,
+                errorHint: "Armadilha Dimensional! O Universo U vai apenas de 1 a 20. O 25 está FORA de U (25 ∉ U): deixe-o fora até da Cúpula Azul!"
+            }
+        ]
+    },
+    {
+        badge: "Câmara 6 de 6 • O Desafio do Arquimago: (A ∪ B) - C",
+        title: "Convergência Tripla: (A ∪ B) - C",
+        story: "Três Esferas cruzam o espaço: A (Pares), B (Múltiplos de 3) e C (Múltiplos de 5). Posicione as 8 Relíquias nas 8 zonas e acenda os Astros de (A ∪ B) - C!",
+        mathRule: "A = {Pares} • B = {Múlt. 3} • C = {Múlt. 5} • Alvo: (A ∪ B) - C",
+        masterMathRule: "A = {2k} • B = {3k} • C = {5k} • Alvo: (A ∪ B) \\ C",
+        spheres: [
+            { id: 'A', name: 'Esfera A (Pares)', masterName: 'A = {2k}', color: 0xff3366, pos: [-1.2, 0.82, 0], radius: 1.92 },
+            { id: 'B', name: 'Esfera B (Múltiplos de 3)', masterName: 'B = {3k}', color: 0x00e5ff, pos: [1.2, 0.82, 0], radius: 1.92 },
+            { id: 'C', name: 'Esfera C (Múltiplos de 5)', masterName: 'C = {5k}', color: 0x9933ff, pos: [0, -0.78, 0], radius: 1.92 }
+        ],
+        runicSwitches: [
+            { id: 'onlyA', label: '★ Só A (sem B, C)', required: true, checkZone: (z) => z.inA && !z.inB && !z.inC, starPos: [-3.0, 2.95, 0], targetBeamPos: [-1.7, 1.1, 0] },
+            { id: 'ABnoC', label: '★ A ∩ B (sem C)', required: true, checkZone: (z) => z.inA && z.inB && !z.inC, starPos: [-1.5, 3.22, 0], targetBeamPos: [0, 1.25, 0] },
+            { id: 'onlyB', label: '★ Só B (sem A, C)', required: true, checkZone: (z) => !z.inA && z.inB && !z.inC, starPos: [0, 3.32, 0], targetBeamPos: [1.7, 1.1, 0] },
+            { id: 'touchC', label: '★ Zonas com C', required: false, checkZone: (z) => z.inC, starPos: [1.5, 3.22, 0], targetBeamPos: [0, -0.78, 0] },
+            { id: 'ext', label: '★ Exterior', required: false, checkZone: (z) => !z.inA && !z.inB && !z.inC, starPos: [3.0, 2.95, 0], targetBeamPos: [3.1, 0.4, 0] }
+        ],
+        runicPrompt: "✨ Constelação de Sintonia — Acenda os 3 Astros que formam (A ∪ B) - C:",
+        crystals: [
+            {
+                id: 1, label: "Relíquia 4", val: 4, color: 0xffd166, geoType: 'octa',
+                traits: "Número 4 | Par (∈ A) | Não múlt. 3 (∉ B) | Não múlt. 5 (∉ C)",
+                targetCheck: (z) => z.inA && !z.inB && !z.inC,
+                errorHint: "Relíquia 4: 4 é apenas Par (∈ A, ∉ B, ∉ C). Deve ficar na parte exclusiva de A!"
+            },
+            {
+                id: 2, label: "Relíquia 9", val: 9, color: 0xffd166, geoType: 'octa',
+                traits: "Número 9 | Ímpar (∉ A) | Múlt. 3 (∈ B) | Não múlt. 5 (∉ C)",
+                targetCheck: (z) => !z.inA && z.inB && !z.inC,
+                errorHint: "Relíquia 9: 9 é apenas Múltiplo de 3 (∈ B, ∉ A, ∉ C). Deve ficar na parte exclusiva de B!"
+            },
+            {
+                id: 3, label: "Relíquia 6", val: 6, color: 0xffd166, geoType: 'dodeca',
+                traits: "Número 6 | Par (∈ A) E Múlt. 3 (∈ B) | Não múlt. 5 (∉ C)",
+                targetCheck: (z) => z.inA && z.inB && !z.inC,
+                errorHint: "Relíquia 6: 6 pertence a A e B ao mesmo tempo, mas foge de C. Coloque-o na interseção superior (A ∩ B - C)!"
+            },
+            {
+                id: 4, label: "Relíquia 12", val: 12, color: 0xffd166, geoType: 'dodeca',
+                traits: "Número 12 | Par (∈ A) E Múlt. 3 (∈ B) | Não múlt. 5 (∉ C)",
+                targetCheck: (z) => z.inA && z.inB && !z.inC,
+                errorHint: "Relíquia 12: 12 pertence a (A ∩ B) - C. Posicione-o entre A e B, acima da esfera C!"
+            },
+            {
+                id: 5, label: "Relíquia 10", val: 10, color: 0xffd166, geoType: 'icosa',
+                traits: "Número 10 | Par (∈ A) | Não múlt. 3 (∉ B) | Múlt. 5 (∈ C!)",
+                targetCheck: (z) => z.inA && !z.inB && z.inC,
+                errorHint: "Relíquia 10: 10 é Par (∈ A) e Múltiplo de 5 (∈ C). Deve ficar na interseção esquerda (A ∩ C)!"
+            },
+            {
+                id: 6, label: "Relíquia 15", val: 15, color: 0xffd166, geoType: 'icosa',
+                traits: "Número 15 | Ímpar (∉ A) | Múlt. 3 (∈ B) E Múlt. 5 (∈ C!)",
+                targetCheck: (z) => !z.inA && z.inB && z.inC,
+                errorHint: "Relíquia 15: 15 pertence a B e C (B ∩ C, fora de A)!"
+            },
+            {
+                id: 7, label: "Relíquia 30", val: 30, color: 0xffd166, geoType: 'dodeca',
+                traits: "Número 30 | Par (∈ A), Múlt. 3 (∈ B) E Múlt. 5 (∈ C)!",
+                targetCheck: (z) => z.inA && z.inB && z.inC,
+                errorHint: "Relíquia 30: 30 possui as 3 essências! Deve ficar exatamente no Centro Triplo (A ∩ B ∩ C)!"
+            },
+            {
+                id: 8, label: "Relíquia 7", val: 7, color: 0xffd166, geoType: 'tetra',
+                traits: "Número 7 | Não é Par, nem Múlt. 3, nem Múlt. 5",
+                targetCheck: (z) => !z.inA && !z.inB && !z.inC,
+                errorHint: "Relíquia 7: O 7 não pertence a nenhum dos 3 conjuntos. Deixe-o no Exterior!"
+            }
+        ]
+    }
+];
+
+// =========================================================
+// 3. TUTORIAL EXPLÍCITO PASSO A PASSO (Exclusivo da Câmara 0)
+// =========================================================
+let tutorialStep = 0;
+let cameraRotatedAmount = 0;
+let hasInspectedCrystal = false;
+let difficultyMode = 'arcano';
+let completedChambers = new Set();
+let chamberStars = [0, 0, 0, 0, 0, 0, 0];
+let chamberMistakes = 0;
+let manaShields = 3;
+let subsetCrankValue = 0;
+
+const TUTORIAL_STEPS_CHAMBER_0 = [
+    {
+        title: "Passo 1/5: Girar as Esferas em 360° (Base Fixa)",
+        instruction: "Clique e arraste no <strong>fundo estrelado vazio</strong>! As Esferas giram livremente em <strong>360°</strong> enquanto a plataforma inferior permanece fixa.",
+        checkDone: () => cameraRotatedAmount > 0.2,
+        statusText: () => `Giro 360° testado: ${Math.min(100, Math.round((cameraRotatedAmount / 0.2) * 100))}%`,
+        spotlightId: null
+    },
+    {
+        title: "Passo 2/5: Olho de Venn (Inspeção)",
+        instruction: "Passe o mouse ou clique sobre um <strong>Cristal nos pedestais da base fixa</strong> para ler seus atributos matemáticos.",
+        checkDone: () => hasInspectedCrystal,
+        statusText: () => hasInspectedCrystal ? "Cristal inspecionado! ✓" : "Toque num cristal...",
+        spotlightId: "inspector-box"
+    },
+    {
+        title: "Passo 3/5: Pertinência (∈) — Fogo em A",
+        instruction: "Arraste os <strong>3 Cristais de Fogo (2, 4 e 8)</strong> para DENTRO da Esfera A. Observe a <em>Onda de Energia 3D</em> e as partículas de mana fluindo pelo feixe!",
+        checkDone: () => {
+            if (currentLevelIdx !== 0) return false;
+            const fireInA = crystalMeshes.filter(c => [2, 4, 8].includes(c.userData.val) && getCrystalZoneStatus(c).inA).length;
+            return fireInA === 3;
+        },
+        statusText: () => {
+            if (currentLevelIdx !== 0) return "";
+            const fireInA = crystalMeshes.filter(c => [2, 4, 8].includes(c.userData.val) && getCrystalZoneStatus(c).inA).length;
+            return `Fogo em A (x ∈ A): ${fireInA} / 3`;
+        },
+        spotlightId: null
+    },
+    {
+        title: "Passo 4/5: Acionar Astro da Constelação",
+        instruction: "Deixe os 2 Cristais de Sombra (5 e 9) FORA de A e <strong>clique no Astro Celeste '★ Astro A (x ∈ A)'</strong> no Arco Superior (ou na barra inferior)!",
+        checkDone: () => {
+            if (currentLevelIdx !== 0) return false;
+            const shadowsOut = crystalMeshes.filter(c => [5, 9].includes(c.userData.val) && !getCrystalZoneStatus(c).inA).length;
+            const runeLit = activeRunicSwitches.has('inA') && !activeRunicSwitches.has('outA');
+            return shadowsOut === 2 && runeLit;
+        },
+        statusText: () => {
+            if (currentLevelIdx !== 0) return "";
+            const runeLit = activeRunicSwitches.has('inA') && !activeRunicSwitches.has('outA');
+            return runeLit ? "Astro Celeste aceso! ✓" : "Acione o '★ Astro A'...";
+        },
+        spotlightId: "runic-altar-panel"
+    },
+    {
+        title: "Passo 5/5: Canalizar o Feitiço!",
+        instruction: "Tudo sintonizado! Clique em <strong>'⚡ Canalizar Feitiço (Validar)'</strong> no canto inferior direito para concluir o Tutorial!",
+        checkDone: () => completedChambers.has(0),
+        statusText: () => "Clique em '⚡ Canalizar Feitiço'!",
+        spotlightId: "btn-verify"
+    }
+];
+
+function updateTutorialCoachUI() {
+    const coachEl = document.getElementById('tutorial-coach');
+    if (currentLevelIdx !== 0) {
+        ['inspector-box', 'runic-altar-panel', 'btn-verify', 'crank-panel'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('tutorial-spotlight');
+        });
+        return;
+    }
+
+    const steps = TUTORIAL_STEPS_CHAMBER_0;
+    if (tutorialStep >= steps.length) tutorialStep = steps.length - 1;
+    if (tutorialStep < 0) tutorialStep = 0;
+
+    if (steps[tutorialStep].checkDone() && tutorialStep < steps.length - 1) {
+        sfxStepComplete();
+        tutorialStep++;
+    }
+
+    const stepObj = steps[tutorialStep];
+    const dotsEl = document.getElementById('coach-dots');
+    dotsEl.innerHTML = '';
+    steps.forEach((s, idx) => {
+        const cls = idx < tutorialStep || s.checkDone() ? 'step-dot done' : (idx === tutorialStep ? 'step-dot current' : 'step-dot');
+        dotsEl.innerHTML += `<span class="${cls}"></span>`;
+    });
+
+    document.getElementById('coach-text').innerHTML = `<div style="color:#f5c542; font-weight:bold; margin-bottom:2px;">${stepObj.title}</div>${stepObj.instruction}`;
+    document.getElementById('coach-status').innerText = stepObj.statusText();
+
+    ['inspector-box', 'runic-altar-panel', 'btn-verify', 'crank-panel'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('tutorial-spotlight');
+    });
+    if (stepObj.spotlightId && !coachEl.classList.contains('hidden')) {
+        const targetEl = document.getElementById(stepObj.spotlightId);
+        if (targetEl) targetEl.classList.add('tutorial-spotlight');
+    }
+}
+
+function nextTutorialStep() {
+    if (currentLevelIdx === 0 && tutorialStep < TUTORIAL_STEPS_CHAMBER_0.length - 1) {
+        tutorialStep++;
+        updateTutorialCoachUI();
+    }
+}
+
+function prevTutorialStep() {
+    if (currentLevelIdx === 0 && tutorialStep > 0) {
+        tutorialStep--;
+        updateTutorialCoachUI();
+    }
+}
+
+function toggleCoachPanel() {
+    if (currentLevelIdx === 0) {
+        document.getElementById('tutorial-coach').classList.toggle('hidden');
+        updateTutorialCoachUI();
+    } else {
+        const lvl = LEVELS[currentLevelIdx];
+        const reqNames = lvl.runicSwitches.filter(s => s.required).map(s => s.label).join(' + ');
+        showToast(`🧙‍♂️ Dica do Mentor: Posicione cada cristal segundo a regra da Câmara e acenda na Constelação: ${reqNames}`, true);
+    }
+}
+
+// =========================================================
+// 4. CENA 3D SEPARADA: BASE FIXA vs ASTROLÁBIO 360° + CONSTELAÇÃO SUPERIOR
+// =========================================================
+let currentLevelIdx = 0;
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x05030d, 0.032);
+
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0.4, 10.4);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+// Iluminação Dramática 3D
+scene.add(new THREE.AmbientLight(0xdcc8ff, 0.58));
+const mainLight = new THREE.PointLight(0xf5c542, 1.35, 35);
+mainLight.position.set(6, 7, 7);
+scene.add(mainLight);
+
+const rimLight = new THREE.PointLight(0x00e5ff, 0.9, 30);
+rimLight.position.set(-6, -4, 5);
+scene.add(rimLight);
+
+const dragLight = new THREE.PointLight(0xffffff, 0, 6.5);
+scene.add(dragLight);
+
+// Poeira Estelar de Fundo
+const starsGeo = new THREE.BufferGeometry();
+const starPositions = [];
+for (let i = 0; i < 550; i++) {
+    starPositions.push((Math.random() - 0.5) * 38, (Math.random() - 0.5) * 26, (Math.random() - 0.5) * 18 - 4);
+}
+starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+const starsMat = new THREE.PointsMaterial({ color: 0xb89648, size: 0.075, transparent: true, opacity: 0.75 });
+const starField = new THREE.Points(starsGeo, starsMat);
+scene.add(starField);
+
+// 1. GRUPO DA BASE FIXA (Altar Octogonal + Pedestais da Bancada + Arco Celeste Superior)
+// Este grupo NUNCA gira quando o jogador gira as esferas!
+const fixedBaseGroup = new THREE.Group();
+scene.add(fixedBaseGroup);
+
+// 2. GRUPO DO ASTROLÁBIO 360° (Esferas A, B, C + Anéis Giroscópicos + Feixes + Cristais posicionados nas Esferas)
+// Este grupo gira 360° livremente!
+const astrolabeGroup = new THREE.Group();
+scene.add(astrolabeGroup);
+
+let astroGyroRings = [];
+let crankGearMesh = null;
+
+function buildArcaneArchitecture() {
+    // A. Plataforma Base Octogonal FIXA na parte inferior
+    const baseGeo = new THREE.CylinderGeometry(4.9, 3.7, 0.34, 8);
+    const baseMat = new THREE.MeshStandardMaterial({
+        color: 0x160f2e, roughness: 0.35, metalness: 0.75,
+        emissive: 0x1a0e38, emissiveIntensity: 0.4
+    });
+    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+    baseMesh.position.set(0, -2.42, 0);
+    fixedBaseGroup.add(baseMesh);
+
+    const edgeGeo = new THREE.EdgesGeometry(baseGeo);
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x9d7c38, transparent: true, opacity: 0.65 });
+    baseMesh.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+    const floorRingGeo = new THREE.RingGeometry(3.3, 3.45, 64);
+    const floorRingMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide, transparent: true, opacity: 0.38 });
+    const floorRing = new THREE.Mesh(floorRingGeo, floorRingMat);
+    floorRing.rotation.x = Math.PI / 2;
+    floorRing.position.set(0, -2.23, 0);
+    fixedBaseGroup.add(floorRing);
+
+    // B. Arco Celeste Superior FIXO (Onde ficam suspensos os Astros de Constelação fora da plataforma!)
+    const archCurve = new THREE.EllipseCurve(0, 0.45, 4.3, 2.85, Math.PI * 0.18, Math.PI * 0.82, false, 0);
+    const archPoints = archCurve.getPoints(64).map(p => new THREE.Vector3(p.x, p.y, -0.2));
+    const archGeo = new THREE.BufferGeometry().setFromPoints(archPoints);
+    const archLine = new THREE.Line(archGeo, new THREE.LineBasicMaterial({ color: 0xf5c542, transparent: true, opacity: 0.45 }));
+    fixedBaseGroup.add(archLine);
+
+    // C. Anéis Giroscópicos 3D do Astrolábio (Giram junto com as Esferas em 360°!)
+    const gyroConfigs = [
+        { radius: 4.15, tube: 0.024, color: 0x9d7c38, opacity: 0.38 },
+        { radius: 4.45, tube: 0.018, color: 0x5a468c, opacity: 0.28 }
+    ];
+    gyroConfigs.forEach(cfg => {
+        const tGeo = new THREE.TorusGeometry(cfg.radius, cfg.tube, 12, 96);
+        const tMat = new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: cfg.opacity });
+        const torus = new THREE.Mesh(tGeo, tMat);
+        torus.position.set(0, 0.42, 0);
+        astrolabeGroup.add(torus);
+        astroGyroRings.push(torus);
+    });
+
+    // D. Engrenagem Astral 3D na Câmara 4
+    const gearGroup = new THREE.Group();
+    const gearRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.62, 0.08, 12, 24),
+        new THREE.MeshStandardMaterial({ color: 0xf5c542, metalness: 0.85, roughness: 0.2, emissive: 0xf5c542, emissiveIntensity: 0.25 })
+    );
+    gearGroup.add(gearRing);
+    for (let i = 0; i < 8; i++) {
+        const spoke = new THREE.Mesh(
+            new THREE.BoxGeometry(1.4, 0.08, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0xf5c542, metalness: 0.8, roughness: 0.2 })
+        );
+        spoke.rotation.z = (i * Math.PI) / 4;
+        gearGroup.add(spoke);
+    }
+    gearGroup.position.set(-3.8, 2.2, -0.5);
+    gearGroup.visible = false;
+    fixedBaseGroup.add(gearGroup);
+    crankGearMesh = gearGroup;
+}
+buildArcaneArchitecture();
+
+// Grupos de Efeitos Visuais 3D (Dentro do astrolabeGroup para girar junto com as esferas!)
+const fxGroup = new THREE.Group();
+astrolabeGroup.add(fxGroup);
+
+const tetherGroup = new THREE.Group();
+astrolabeGroup.add(tetherGroup);
+
+let sphereMeshes = [];
+let crystalMeshes = [];
+let pedestalMeshes = [];
+let constellationMeshes = []; // Astros Celestes no Arco Superior (fora da plataforma!)
+let activeParticles = [];
+let shockwaves = [];
+let spherePulses = []; // Efeito de pulsação e absorção quando cristal entra na esfera!
+let crystalAnimations = [];
+let activeRunicSwitches = new Set();
+
+// Criar explosão de partículas mágicas 3D
+function spawnParticles(pos, hexColor, count = 26) {
+    for (let i = 0; i < count; i++) {
+        const geo = new THREE.OctahedronGeometry(0.065, 0);
+        const mat = new THREE.MeshBasicMaterial({ color: hexColor, transparent: true, opacity: 1 });
+        const p = new THREE.Mesh(geo, mat);
+        p.position.copy(pos);
+        const angle1 = Math.random() * Math.PI * 2;
+        const angle2 = Math.random() * Math.PI * 2;
+        const speed = 0.03 + Math.random() * 0.075;
+        p.userData = {
+            vx: Math.cos(angle1) * Math.sin(angle2) * speed,
+            vy: Math.sin(angle1) * Math.sin(angle2) * speed + 0.015,
+            vz: Math.cos(angle2) * speed,
+            life: 1.0
+        };
+        fxGroup.add(p);
+        activeParticles.push(p);
+    }
+}
+
+// Criar Onda de Energia 3D (Ripple / Shockwave) quando o cristal entra numa esfera ou valida o ritual!
+function spawnShockwave(pos, hexColor, maxScale = 6.5) {
+    const geo = new THREE.RingGeometry(0.18, 0.32, 48);
+    const mat = new THREE.MeshBasicMaterial({ color: hexColor, side: THREE.DoubleSide, transparent: true, opacity: 0.95, depthWrite: false });
+    const ring = new THREE.Mesh(geo, mat);
+    ring.position.copy(pos);
+    // Faz o anel olhar para a câmera no momento da criação
+    ring.lookAt(camera.position);
+    ring.userData = { scale: 1, maxScale, life: 1.0 };
+    fxGroup.add(ring);
+    shockwaves.push(ring);
+}
+
+// Efeito Visual Especial quando um Cristal entra numa Esfera (Pulso da Esfera + Onda + Partículas!)
+function triggerSphereEntryEffect(crystal, enteredSpheres) {
+    const localPos = getCrystalAstrolabeLocalPos(crystal);
+    enteredSpheres.forEach(s => {
+        // 1. Onda de absorção centrada no cristal com a cor da esfera
+        spawnShockwave(localPos, s.userData.color, 4.2);
+        // 2. Partículas mágicas da cor da esfera ao redor do cristal
+        spawnParticles(localPos, s.userData.color, 18);
+        // 3. Pulso de brilho na casca e na malha geodésica da Esfera!
+        spherePulses.push({
+            sphere: s,
+            elapsed: 0,
+            duration: 0.65
+        });
+    });
+    sfxSphereEnter(enteredSpheres.length);
+}
+
+// Rótulos flutuantes 3D
+function createTextSprite(text, bgColor = "rgba(14, 9, 30, 0.88)", borderColor = "#f5c542", scaleX = 1.45, scaleY = 0.36) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 280;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bgColor;
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(6, 6, 268, 52, 12);
+    } else {
+        ctx.rect(6, 6, 268, 52);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 21px Segoe UI, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 140, 32);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(scaleX, scaleY, 1);
+    return sprite;
+}
+
+// Retorna a posição do cristal no sistema de coordenadas local do astrolabeGroup
+function getCrystalAstrolabeLocalPos(crystal) {
+    const worldPos = new THREE.Vector3();
+    crystal.getWorldPosition(worldPos);
+    return astrolabeGroup.worldToLocal(worldPos);
+}
+
+// Atualiza os Feixes de Energia 3D (Tethers + Pulsos de Mana viajando pelo feixe!)
+function updateEnergyTethers(timeSec = 0) {
+    while (tetherGroup.children.length > 0) {
+        tetherGroup.remove(tetherGroup.children[0]);
+    }
+    crystalMeshes.forEach((c, cIdx) => {
+        const cLocal = getCrystalAstrolabeLocalPos(c);
+        sphereMeshes.forEach((s, sIdx) => {
+            const dist = cLocal.distanceTo(s.position);
+            if (dist < s.userData.radius - 0.12) {
+                // 1. Linha de energia entre o centro da esfera e o cristal
+                const pts = [s.position.clone(), cLocal.clone()];
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                const lineMat = new THREE.LineBasicMaterial({
+                    color: s.userData.color,
+                    transparent: true,
+                    opacity: 0.72
+                });
+                tetherGroup.add(new THREE.Line(lineGeo, lineMat));
+
+                // 2. Orbe de Mana viajando continuamente pelo feixe (efeito vivo em Three.js!)
+                const flowT = ((timeSec * 1.4 + cIdx * 0.3 + sIdx * 0.5) % 1);
+                const orbPos = new THREE.Vector3().lerpVectors(s.position, cLocal, flowT);
+                const orbGeo = new THREE.OctahedronGeometry(0.06, 0);
+                const orbMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const orbMesh = new THREE.Mesh(orbGeo, orbMat);
+                orbMesh.position.copy(orbPos);
+                tetherGroup.add(orbMesh);
+            }
+        });
+    });
+}
+
+// =========================================================
+// 5. NAVEGAÇÃO, MODOS E ASTROS DE CONSTELAÇÃO (FORA DA PLATAFORMA!)
+// =========================================================
+function renderChamberNav() {
+    const nav = document.getElementById('chamber-nav');
+    nav.innerHTML = '';
+    LEVELS.forEach((lvl, i) => {
+        const btn = document.createElement('button');
+        const isCurrent = i === currentLevelIdx;
+        const isDone = completedChambers.has(i);
+        btn.className = 'chamber-pill' + (isCurrent ? ' active' : '') + (isDone ? ' completed' : '');
+        const starsTxt = chamberStars[i] > 0 ? ' ' + '★'.repeat(chamberStars[i]) : '';
+        btn.innerText = (i === 0 ? '0: Tutorial' : `Câmara ${i}`) + starsTxt;
+        btn.onclick = () => loadLevel(i);
+        nav.appendChild(btn);
+    });
+    const totalStars = chamberStars.reduce((a, b) => a + b, 0);
+    document.getElementById('score-display').innerText = `⭐ ${totalStars}/21`;
+}
+
+function updateShieldsUI() {
+    const shEl = document.getElementById('shields-display');
+    if (difficultyMode === 'arquimago') {
+        shEl.classList.remove('hidden');
+        shEl.innerText = '🛡️'.repeat(Math.max(0, manaShields)) + '🖤'.repeat(Math.max(0, 3 - manaShields));
+    } else {
+        shEl.classList.add('hidden');
+    }
+}
+
+function setDifficultyMode(mode) {
+    difficultyMode = mode;
+    document.getElementById('mode-normal-btn').classList.toggle('active', mode === 'arcano');
+    document.getElementById('mode-hard-btn').classList.toggle('active', mode === 'arquimago');
+    manaShields = 3;
+    updateShieldsUI();
+    loadLevel(currentLevelIdx);
+
+    if (mode === 'arquimago') {
+        showToast(
+            `🔥 Modo Arquimago Mestre Ativado!<br><span style="font-size:0.86rem; font-weight:normal;">• Notação Matemática Formal nas Esferas<br>• Cálculo Mental Puro (sem dicas mastigadas no Inspetor)<br>• 3 Escudos de Mana (🛡️🛡️🛡️) e Deriva Orbital 3D!</span>`,
+            true
+        );
+    } else {
+        showToast(
+            `🔮 Modo Arcano Ativado!<br><span style="font-size:0.86rem; font-weight:normal;">• Olho de Venn exibe dicas de divisibilidade e paridade<br>• Nomes descritivos nas Esferas e tentativas livres.</span>`,
+            true
+        );
+    }
+}
+
+// Renderiza os Astros de Constelação no Arco Celeste Superior (y > 2.95, longe dos cristais!)
+function renderRunicSwitches(lvl) {
+    activeRunicSwitches.clear();
+    const containerEl = document.getElementById('runic-switches-container');
+    document.getElementById('runic-altar-subtitle').innerText = lvl.runicPrompt;
+    containerEl.innerHTML = '';
+
+    // Limpar Astros 3D anteriores
+    constellationMeshes.forEach(t => fixedBaseGroup.remove(t));
+    constellationMeshes = [];
+
+    lvl.runicSwitches.forEach(sw => {
+        // 1. Botão na barra de Constelação inferior
+        const btn = document.createElement('button');
+        btn.className = 'rune-switch';
+        btn.id = `rune-sw-${sw.id}`;
+        btn.innerHTML = `<span>☆</span> <span>${sw.label.replace('★ ', '')}</span>`;
+        btn.onclick = () => toggleRunicSwitch(sw.id);
+        containerEl.appendChild(btn);
+
+        // 2. Astro de Constelação 3D suspenso no Arco Celeste Superior (fora da plataforma!)
+        if (sw.starPos) {
+            const starGroup = new THREE.Group();
+            starGroup.position.set(...sw.starPos);
+
+            // Estrela/Orbe 3D facetada
+            const starGeo = new THREE.OctahedronGeometry(0.2, 0);
+            const starMat = new THREE.MeshStandardMaterial({
+                color: 0x7c68b0, emissive: 0x3a2475, emissiveIntensity: 0.4,
+                roughness: 0.1, metalness: 0.85
+            });
+            const starGem = new THREE.Mesh(starGeo, starMat);
+            starGem.userData = { isConstellationStar: true, switchId: sw.id };
+            starGroup.add(starGem);
+
+            // Halo duplo ao redor do Astro Celeste
+            const haloGeo = new THREE.RingGeometry(0.26, 0.3, 32);
+            const haloMat = new THREE.MeshBasicMaterial({
+                color: 0xf5c542, side: THREE.DoubleSide, transparent: true, opacity: 0.35
+            });
+            const halo = new THREE.Mesh(haloGeo, haloMat);
+            starGroup.add(halo);
+
+            // Raio Celeste ligando o Astro Superior até a região alvo das Esferas (invisível até ativar)
+            const startVec = new THREE.Vector3(0, 0, 0);
+            const targetWorld = new THREE.Vector3(...(sw.targetBeamPos || [0, 0.42, 0]));
+            const endVec = targetWorld.clone().sub(new THREE.Vector3(...sw.starPos));
+            const rayGeo = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
+            const rayMat = new THREE.LineBasicMaterial({
+                color: 0xf5c542, transparent: true, opacity: 0.0
+            });
+            const rayLine = new THREE.Line(rayGeo, rayMat);
+            starGroup.add(rayLine);
+
+            // Rótulo compacto acima do Astro no topo
+            const starLabel = createTextSprite(sw.label.replace('★ ', ''), "rgba(14, 9, 30, 0.85)", "#7c68b0", 1.12, 0.26);
+            starLabel.position.set(0, 0.38, 0);
+            starGroup.add(starLabel);
+
+            starGroup.userData = { switchId: sw.id, gem: starGem, halo, rayLine };
+            fixedBaseGroup.add(starGroup);
+            constellationMeshes.push(starGroup);
+        }
+    });
+}
+
+function toggleRunicSwitch(swId) {
+    if (activeRunicSwitches.has(swId)) {
+        activeRunicSwitches.delete(swId);
+        sfxRuneToggle(false);
+    } else {
+        activeRunicSwitches.add(swId);
+        sfxRuneToggle(true);
+    }
+    const isLit = activeRunicSwitches.has(swId);
+
+    // Atualizar botão na doca
+    const btn = document.getElementById(`rune-sw-${swId}`);
+    if (btn) {
+        btn.classList.toggle('lit', isLit);
+        btn.querySelector('span').innerText = isLit ? '★' : '☆';
+    }
+
+    // Atualizar Astro de Constelação 3D no Arco Superior
+    const starObj = constellationMeshes.find(t => t.userData.switchId === swId);
+    if (starObj) {
+        starObj.userData.gem.material.color.setHex(isLit ? 0xf5c542 : 0x7c68b0);
+        starObj.userData.gem.material.emissive.setHex(isLit ? 0xf5c542 : 0x3a2475);
+        starObj.userData.gem.material.emissiveIntensity = isLit ? 1.4 : 0.4;
+        starObj.userData.halo.material.opacity = isLit ? 0.95 : 0.35;
+        starObj.userData.halo.scale.set(isLit ? 1.3 : 1.0, isLit ? 1.3 : 1.0, 1);
+        starObj.userData.rayLine.material.opacity = isLit ? 0.75 : 0.0;
+    }
+
+    highlightSpheresFromSwitches();
+    updateTutorialCoachUI();
+}
+
+function highlightSpheresFromSwitches() {
+    const lvl = LEVELS[currentLevelIdx];
+    crystalMeshes.forEach(c => {
+        const z = getCrystalZoneStatus(c);
+        let inLitZone = false;
+        lvl.runicSwitches.forEach(sw => {
+            if (activeRunicSwitches.has(sw.id) && sw.checkZone(z)) {
+                inLitZone = true;
+            }
+        });
+        c.material.emissiveIntensity = inLitZone ? 1.0 : 0.35;
+        if (c.userData.orbitRing) {
+            c.userData.orbitRing.material.opacity = inLitZone ? 0.95 : 0.38;
+        }
+    });
+}
+
+function checkRunicSwitchesCorrect(lvl) {
+    for (const sw of lvl.runicSwitches) {
+        const isSelected = activeRunicSwitches.has(sw.id);
+        if (sw.required !== isSelected) return false;
+    }
+    return true;
+}
+
+function resetAstrolabeRotation() {
+    astrolabeGroup.rotation.set(0, 0, 0);
+    document.getElementById('orbit-angle-label').innerText = `🔄 Órbita 3D: 0° (Base Fixa)`;
+    updateEnergyTethers();
+}
+
+// Manivela Mágica da Câmara 4
+function onCrankChange(val) {
+    subsetCrankValue = Number(val);
+    const t = subsetCrankValue / 100;
+    const sphereA = sphereMeshes.find(s => s.userData.id === 'A');
+    if (sphereA && sphereA.userData.targetPos) {
+        const startX = sphereA.userData.pos[0];
+        const endX = sphereA.userData.targetPos[0];
+        sphereA.position.x = startX + (endX - startX) * t;
+    }
+    if (crankGearMesh) {
+        crankGearMesh.rotation.z = -t * Math.PI * 4;
+    }
+    const statusEl = document.getElementById('crank-status');
+    if (subsetCrankValue >= 95) {
+        statusEl.style.color = '#2ecc71';
+        statusEl.innerText = `✓ Esfera A 100% contida em B (A ⊂ B)!`;
+    } else {
+        statusEl.style.color = '#ff9966';
+        statusEl.innerText = `Órbita de A: ${subsetCrankValue}% movida para dentro de B`;
+    }
+    updateEnergyTethers();
+    updateTutorialCoachUI();
+}
+
+// =========================================================
+// 6. CARREGAMENTO DAS CÂMARAS (Cristais na Base Fixa, Esferas no Astrolábio 360°)
+// =========================================================
+function createCrystalGeometry(geoType) {
+    if (geoType === 'dodeca') return new THREE.DodecahedronGeometry(0.32, 0);
+    if (geoType === 'icosa') return new THREE.IcosahedronGeometry(0.32, 0);
+    if (geoType === 'tetra') return new THREE.TetrahedronGeometry(0.35, 0);
+    return new THREE.OctahedronGeometry(0.33, 0);
+}
+
+function loadLevel(idx) {
+    currentLevelIdx = idx;
+    tutorialStep = 0;
+    chamberMistakes = 0;
+    manaShields = 3;
+    subsetCrankValue = 0;
+    const lvl = LEVELS[idx];
+
+    updateShieldsUI();
+    document.getElementById('grimoire-diagnostic').classList.add('hidden');
+
+    // Mentor visível APENAS na Câmara 0 (Tutorial)
+    const coachEl = document.getElementById('tutorial-coach');
+    if (idx === 0) {
+        coachEl.classList.remove('hidden');
+    } else {
+        coachEl.classList.add('hidden');
+    }
+
+    document.getElementById('ui-badge').innerText = lvl.badge;
+    document.getElementById('ui-title').innerText = lvl.title;
+    document.getElementById('ui-story').innerText = lvl.story;
+    document.getElementById('ui-math').innerText = difficultyMode === 'arquimago' ? lvl.masterMathRule : lvl.mathRule;
+
+    const crankPanel = document.getElementById('crank-panel');
+    if (lvl.requiresCrank) {
+        crankPanel.classList.remove('hidden');
+        document.getElementById('subset-crank').value = 0;
+        document.getElementById('crank-status').style.color = '#ff9966';
+        document.getElementById('crank-status').innerText = 'Órbita de A: Fora de B (0%)';
+        if (crankGearMesh) crankGearMesh.visible = true;
+    } else {
+        crankPanel.classList.add('hidden');
+        if (crankGearMesh) crankGearMesh.visible = false;
+    }
+
+    const legendEl = document.getElementById('ui-spheres-legend');
+    legendEl.innerHTML = '';
+    lvl.spheres.forEach(s => {
+        const hex = '#' + s.color.toString(16).padStart(6, '0');
+        const dispName = difficultyMode === 'arquimago' ? s.masterName : s.name;
+        legendEl.innerHTML += `<div class="legend-item"><span class="dot" style="background:${hex}; box-shadow: 0 0 8px ${hex};"></span><span>${dispName}</span></div>`;
+    });
+
+    // Limpar objetos 3D anteriores dos dois grupos
+    sphereMeshes.forEach(s => astrolabeGroup.remove(s));
+    crystalMeshes.forEach(c => {
+        if (c.parent) c.parent.remove(c);
+    });
+    pedestalMeshes.forEach(p => fixedBaseGroup.remove(p));
+    sphereMeshes = [];
+    crystalMeshes = [];
+    pedestalMeshes = [];
+    crystalAnimations = [];
+    spherePulses = [];
+    resetAstrolabeRotation();
+
+    // Criar Esferas 3D dentro do astrolabeGroup (Giram em 360°!)
+    lvl.spheres.forEach(sData => {
+        const geo = new THREE.SphereGeometry(sData.radius, 40, 40);
+        const mat = new THREE.MeshPhongMaterial({
+            color: sData.color,
+            transparent: true,
+            opacity: 0.16,
+            shininess: 100,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const sphere = new THREE.Mesh(geo, mat);
+        sphere.position.set(...sData.pos);
+        sphere.userData = { ...sData, baseOpacity: 0.16 };
+
+        const wireGeo = new THREE.IcosahedronGeometry(sData.radius * 0.99, 2);
+        const wireMat = new THREE.MeshBasicMaterial({
+            color: sData.color, wireframe: true, transparent: true, opacity: 0.08, depthWrite: false
+        });
+        const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+        sphere.add(wireMesh);
+        sphere.userData.wireMesh = wireMesh;
+
+        const ringGeo = new THREE.RingGeometry(sData.radius - 0.035, sData.radius, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: sData.color, side: THREE.DoubleSide, transparent: true, opacity: 0.65 });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        sphere.add(ring);
+
+        const orbitTorus = new THREE.Mesh(
+            new THREE.TorusGeometry(sData.radius * 1.02, 0.015, 8, 64),
+            new THREE.MeshBasicMaterial({ color: sData.color, transparent: true, opacity: 0.4 })
+        );
+        orbitTorus.rotation.x = Math.PI / 3;
+        sphere.add(orbitTorus);
+        sphere.userData.orbitTorus = orbitTorus;
+
+        const dispName = difficultyMode === 'arquimago' ? sData.masterName : sData.name;
+        const label = createTextSprite(dispName, "rgba(10, 6, 24, 0.86)", '#' + sData.color.toString(16).padStart(6, '0'), 1.5, 0.35);
+        label.position.set(0, sData.radius + 0.34, 0);
+        sphere.add(label);
+
+        astrolabeGroup.add(sphere);
+        sphereMeshes.push(sphere);
+    });
+
+    // Criar Pedestais e Cristais inicialmente na Base Fixa (fixedBaseGroup)
+    const count = lvl.crystals.length;
+    const totalWidth = Math.min(8.0, count * 1.15);
+    const startX = -totalWidth / 2;
+    const stepX = count > 1 ? totalWidth / (count - 1) : 0;
+
+    lvl.crystals.forEach((cData, i) => {
+        const xPos = startX + i * stepX;
+        const yBench = -1.92 + (i % 2 === 0 ? 0.06 : -0.06);
+
+        // Pedestal Fixo na Bancada
+        const pedGeo = new THREE.CylinderGeometry(0.28, 0.35, 0.16, 6);
+        const pedMat = new THREE.MeshStandardMaterial({
+            color: 0x26194d, roughness: 0.4, metalness: 0.7,
+            emissive: 0x3a2475, emissiveIntensity: 0.35
+        });
+        const pedestal = new THREE.Mesh(pedGeo, pedMat);
+        pedestal.position.set(xPos, yBench - 0.34, 0);
+        fixedBaseGroup.add(pedestal);
+        pedestalMeshes.push(pedestal);
+
+        // Cristal Composto 3D (Começa na Base Fixa; quando solto nas Esferas, passa a girar junto com o Astrolábio!)
+        const geo = createCrystalGeometry(cData.geoType);
+        const mat = new THREE.MeshStandardMaterial({
+            color: cData.color,
+            emissive: cData.color,
+            emissiveIntensity: 0.35,
+            roughness: 0.15,
+            metalness: 0.7
+        });
+        const crystal = new THREE.Mesh(geo, mat);
+        crystal.position.set(xPos, yBench, 0);
+        crystal.userData = {
+            ...cData,
+            initialPos: new THREE.Vector3(xPos, yBench, 0),
+            lastZoneKey: "",
+            inAstrolabe: false
+        };
+
+        const cRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.42, 0.016, 8, 32),
+            new THREE.MeshBasicMaterial({ color: cData.color, transparent: true, opacity: 0.4 })
+        );
+        cRing.rotation.x = Math.PI / 2.5;
+        crystal.add(cRing);
+        crystal.userData.orbitRing = cRing;
+
+        const label = createTextSprite(cData.label, "rgba(16, 10, 34, 0.92)", "#f5c542", 1.22, 0.3);
+        label.position.set(0, -0.52, 0);
+        crystal.add(label);
+
+        fixedBaseGroup.add(crystal);
+        crystalMeshes.push(crystal);
+    });
+
+    renderChamberNav();
+    renderRunicSwitches(lvl);
+    updateEnergyTethers();
+    updateInspector(null);
+    updateTutorialCoachUI();
+}
+
+// =========================================================
+// 7. INTERAÇÃO 3D (Giro 360° Livre nas Esferas + Base Fixa + Efeito ao Entrar nas Esferas)
+// =========================================================
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const planeIntersect = new THREE.Vector3();
+
+let draggedCrystal = null;
+let isRotatingScene = false;
+let prevMouse = { x: 0, y: 0 };
+
+function getNormalizedMouse(e) {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    mouse.x = (clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+    return { clientX, clientY };
+}
+
+function getCrystalZoneStatus(crystal) {
+    const status = { inA: false, inB: false, inC: false, names: [], spheres: [] };
+    const cLocal = getCrystalAstrolabeLocalPos(crystal);
+    sphereMeshes.forEach(s => {
+        const dist = cLocal.distanceTo(s.position);
+        const inside = dist < (s.userData.radius - 0.12);
+        if (s.userData.id === 'A') status.inA = inside;
+        if (s.userData.id === 'B') status.inB = inside;
+        if (s.userData.id === 'C') status.inC = inside;
+        if (inside) {
+            status.names.push(s.userData.id);
+            status.spheres.push(s);
+        }
+    });
+    return status;
+}
+
+// Transfere suavemente um cristal entre a Base Fixa e o Astrolábio 360° mantendo sua posição visual
+function attachCrystalToGroup(crystal, targetGroup) {
+    if (crystal.parent === targetGroup) return;
+    const worldPos = new THREE.Vector3();
+    crystal.getWorldPosition(worldPos);
+    if (crystal.parent) crystal.parent.remove(crystal);
+    targetGroup.add(crystal);
+    crystal.position.copy(targetGroup.worldToLocal(worldPos));
+}
+
+function updateInspector(crystal) {
+    const el = document.getElementById('inspector-text');
+    if (!crystal) {
+        el.innerHTML = "Passe o mouse ou toque num cristal na base fixa para ler sua essência.";
+        return;
+    }
+    hasInspectedCrystal = true;
+    const z = getCrystalZoneStatus(crystal);
+    const regionTxt = z.names.length > 0
+        ? `Dentro de: <strong style="color:#80ffdb;">${z.names.join(' ∩ ')}</strong>`
+        : `<strong style="color:#ffcc66;">Fora das Esferas</strong> (Exterior)`;
+
+    const traitsTxt = difficultyMode === 'arquimago'
+        ? `<span style="color:#ff99ac;">🔥 Mestre: Deduzir propriedades de <strong>${crystal.userData.val}</strong></span>`
+        : `<span style="color:#cfc2e8;">${crystal.userData.traits}</span>`;
+
+    el.innerHTML = `
+        <div><strong style="color:#f5c542;">💎 ${crystal.userData.label}</strong> • ${regionTxt}</div>
+        <div style="font-size:0.78rem; margin-top:2px;">${traitsTxt}</div>
+    `;
+    updateTutorialCoachUI();
+}
+
+function onPointerDown(e) {
+    if (e.target.closest('.interactive')) return;
+    const { clientX, clientY } = getNormalizedMouse(e);
+    raycaster.setFromCamera(mouse, camera);
+
+    // 1. Verificar clique em Cristal 3D
+    const hits = raycaster.intersectObjects(crystalMeshes, false);
+    if (hits.length > 0) {
+        draggedCrystal = hits[0].object;
+        // Durante o arraste, colocamos no fixedBaseGroup (espaço de tela) para seguir o mouse perfeitamente
+        attachCrystalToGroup(draggedCrystal, fixedBaseGroup);
+        draggedCrystal.scale.set(1.28, 1.28, 1.28);
+        dragLight.color.setHex(draggedCrystal.userData.color);
+        dragLight.intensity = 2.2;
+        dragLight.position.copy(draggedCrystal.position);
+        sfxPickup();
+        updateInspector(draggedCrystal);
+        return;
+    }
+
+    // 2. Verificar clique num Astro de Constelação 3D no Arco Superior!
+    const starGems = constellationMeshes.map(t => t.userData.gem);
+    const starHits = raycaster.intersectObjects(starGems, false);
+    if (starHits.length > 0) {
+        const swId = starHits[0].object.userData.switchId;
+        toggleRunicSwitch(swId);
+        return;
+    }
+
+    // 3. Girar o Astrolábio de Esferas em 360° (A Base permanece fixa!)
+    isRotatingScene = true;
+    prevMouse = { x: clientX, y: clientY };
+}
+
+function onPointerMove(e) {
+    const { clientX, clientY } = getNormalizedMouse(e);
+    raycaster.setFromCamera(mouse, camera);
+
+    if (draggedCrystal) {
+        raycaster.ray.intersectPlane(dragPlane, planeIntersect);
+        draggedCrystal.position.set(
+            THREE.MathUtils.clamp(planeIntersect.x, -4.5, 4.5),
+            THREE.MathUtils.clamp(planeIntersect.y, -2.05, 2.75),
+            0
+        );
+        dragLight.position.copy(draggedCrystal.position);
+
+        // Detectar se o cristal acabou de entrar numa nova Esfera ou Interseção para disparar o Efeito Visual!
+        const z = getCrystalZoneStatus(draggedCrystal);
+        const currentZoneKey = z.names.join(',');
+        if (currentZoneKey !== draggedCrystal.userData.lastZoneKey) {
+            if (z.spheres.length > 0) {
+                triggerSphereEntryEffect(draggedCrystal, z.spheres);
+            }
+            draggedCrystal.userData.lastZoneKey = currentZoneKey;
+        }
+
+        updateEnergyTethers();
+        updateInspector(draggedCrystal);
+        highlightSpheresFromSwitches();
+    } else if (isRotatingScene) {
+        const dx = (clientX - prevMouse.x) * 0.0085;
+        const dy = (clientY - prevMouse.y) * 0.0065;
+        // Rotação 360° contínua sem limite horizontal nas Esferas!
+        astrolabeGroup.rotation.y += dx;
+        astrolabeGroup.rotation.x = THREE.MathUtils.clamp(astrolabeGroup.rotation.x + dy, -0.65, 0.65);
+        cameraRotatedAmount += Math.abs(dx) + Math.abs(dy);
+        prevMouse = { x: clientX, y: clientY };
+
+        const deg = ((Math.round((astrolabeGroup.rotation.y * 180) / Math.PI) % 360) + 360) % 360;
+        document.getElementById('orbit-angle-label').innerText = `🔄 Órbita 3D: ${deg}° (Base Fixa)`;
+        updateTutorialCoachUI();
+    } else {
+        const hits = raycaster.intersectObjects(crystalMeshes, false);
+        const starGems = constellationMeshes.map(t => t.userData.gem);
+        const starHits = raycaster.intersectObjects(starGems, false);
+        document.body.style.cursor = (hits.length > 0 || starHits.length > 0) ? 'pointer' : 'default';
+        if (hits.length > 0) updateInspector(hits[0].object);
+    }
+}
+
+function onPointerUp() {
+    if (draggedCrystal) {
+        draggedCrystal.scale.set(1, 1, 1);
+        dragLight.intensity = 0;
+        sfxDrop();
+
+        // Se o cristal foi solto acima da bancada (no espaço das Esferas), vincula ao astrolabeGroup para girar 360° junto com as Esferas!
+        if (draggedCrystal.position.y > -1.45) {
+            attachCrystalToGroup(draggedCrystal, astrolabeGroup);
+            // Alinha suavemente na profundidade das esferas para que gire em 360° perfeitamente dentro do conjunto
+            draggedCrystal.position.z *= 0.25;
+            draggedCrystal.userData.inAstrolabe = true;
+            const z = getCrystalZoneStatus(draggedCrystal);
+            if (z.spheres.length > 0) {
+                triggerSphereEntryEffect(draggedCrystal, z.spheres);
+            }
+        } else {
+            attachCrystalToGroup(draggedCrystal, fixedBaseGroup);
+            draggedCrystal.position.z = 0;
+            draggedCrystal.userData.inAstrolabe = false;
+        }
+
+        updateEnergyTethers();
+        updateInspector(draggedCrystal);
+        highlightSpheresFromSwitches();
+        updateTutorialCoachUI();
+        draggedCrystal = null;
+    }
+    isRotatingScene = false;
+}
+
+window.addEventListener('mousedown', onPointerDown);
+window.addEventListener('mousemove', onPointerMove);
+window.addEventListener('mouseup', onPointerUp);
+window.addEventListener('touchstart', onPointerDown, { passive: false });
+window.addEventListener('touchmove', onPointerMove, { passive: false });
+window.addEventListener('touchend', onPointerUp);
+
+// =========================================================
+// 8. VALIDAÇÃO MATEMÁTICA, ESCUDOS DE MANA E ONDAS DE CHOQUE 3D
+// =========================================================
+function showToast(msg, isSuccess) {
+    const toast = document.getElementById('feedback-toast');
+    toast.className = isSuccess ? 'toast-success' : 'toast-error';
+    toast.innerHTML = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translate(-50%, -50%) scale(1.04)';
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translate(-50%, -50%) scale(0.95)';
+    }, 3400);
+}
+
+function triggerCrystalErrorAnimation(crystal) {
+    const localPos = getCrystalAstrolabeLocalPos(crystal);
+    spawnParticles(localPos, 0xff2244, 24);
+    // Devolve o cristal para a Base Fixa para voar de volta ao seu pedestal!
+    attachCrystalToGroup(crystal, fixedBaseGroup);
+    crystal.userData.inAstrolabe = false;
+    crystal.userData.lastZoneKey = "";
+    const startPos = crystal.position.clone();
+    const targetBenchPos = crystal.userData.initialPos.clone();
+    crystalAnimations.push({
+        crystal,
+        startPos,
+        targetBenchPos,
+        elapsed: 0,
+        duration: 1.15
+    });
+}
+
+function handleMistakePenalty() {
+    chamberMistakes++;
+    if (difficultyMode === 'arquimago') {
+        manaShields--;
+        updateShieldsUI();
+        if (manaShields <= 0) {
+            setTimeout(() => {
+                showToast("💥 Colapso de Mana no Modo Arquimago Mestre! A Câmara foi reiniciada.", false);
+                loadLevel(currentLevelIdx);
+            }, 1400);
+        }
+    }
+}
+
+function verifyRitual() {
+    const lvl = LEVELS[currentLevelIdx];
+    const diagBox = document.getElementById('grimoire-diagnostic');
+    const diagText = document.getElementById('diagnostic-text');
+
+    if (lvl.requiresCrank && subsetCrankValue < 95) {
+        sfxError();
+        handleMistakePenalty();
+        diagBox.classList.remove('hidden');
+        diagText.innerHTML = "Gire a <strong>⚙️ Manivela Astral</strong> à direita até 100% para colocar a Esfera A dentro de B (A ⊂ B)!";
+        showToast("⚠️ Gire a Manivela Astral para mover a Esfera A para dentro de B (A ⊂ B)!", false);
+        return;
+    }
+
+    let wrongCrystals = [];
+    crystalMeshes.forEach(c => {
+        const z = getCrystalZoneStatus(c);
+        const isOk = c.userData.targetCheck(z);
+        if (!isOk) {
+            wrongCrystals.push(c);
+            c.material.emissive.setHex(0xff0022);
+            c.material.emissiveIntensity = 1.3;
+            triggerCrystalErrorAnimation(c);
+            setTimeout(() => {
+                c.material.emissive.setHex(c.userData.color);
+                c.material.emissiveIntensity = 0.35;
+            }, 1300);
+        } else {
+            c.material.emissive.setHex(0x00ff88);
+            c.material.emissiveIntensity = 1.0;
+            spawnParticles(getCrystalAstrolabeLocalPos(c), 0x2ecc71, 14);
+            setTimeout(() => {
+                c.material.emissive.setHex(c.userData.color);
+                c.material.emissiveIntensity = 0.35;
+            }, 1300);
+        }
+    });
+
+    if (wrongCrystals.length > 0) {
+        sfxError();
+        handleMistakePenalty();
+        const firstWrong = wrongCrystals[0];
+        diagBox.classList.remove('hidden');
+        diagText.innerHTML = `<strong>${firstWrong.userData.label}:</strong> ${firstWrong.userData.errorHint}`;
+        showToast(
+            `⚠️ Dissonância Arcana! ${wrongCrystals.length} cristal(is) na zona errada.<br><span style="font-size:0.88rem; font-weight:normal;">Consulte o Diagnóstico à direita! Os cristais instáveis voltaram aos pedestais fixos.</span>`,
+            false
+        );
+        return;
+    }
+
+    if (!checkRunicSwitchesCorrect(lvl)) {
+        sfxError();
+        handleMistakePenalty();
+        const requiredLabels = lvl.runicSwitches.filter(s => s.required).map(s => `"${s.label.replace('★ ', '')}"`).join(' + ');
+        diagBox.classList.remove('hidden');
+        diagText.innerHTML = `Cristais perfeitos! Agora acione na <strong>Constelação de Sintonia</strong> (no Arco Superior ou na barra inferior) apenas: <strong>${requiredLabels}</strong>.`;
+        showToast(`✨ Quase lá! Acione os Astros de Constelação corretos para iluminar a operação pedida!`, false);
+        return;
+    }
+
+    diagBox.classList.add('hidden');
+    sfxSuccess();
+    completedChambers.add(currentLevelIdx);
+    const earnedStars = chamberMistakes === 0 ? 3 : (chamberMistakes === 1 ? 2 : 1);
+    chamberStars[currentLevelIdx] = Math.max(chamberStars[currentLevelIdx], earnedStars);
+    renderChamberNav();
+    updateTutorialCoachUI();
+
+    sphereMeshes.forEach(s => {
+        spawnParticles(s.position, 0xf5c542, 32);
+        spawnShockwave(s.position, s.userData.color, 7.5);
+    });
+
+    if (currentLevelIdx < LEVELS.length - 1) {
+        showToast(
+            `✨ Feitiço Estabilizado! (${'⭐'.repeat(earnedStars)})<br><span style="font-size:0.9rem;">Avançando para a Câmara ${currentLevelIdx + 1}...</span>`,
+            true
+        );
+        setTimeout(() => loadLevel(currentLevelIdx + 1), 2500);
+    } else {
+        const totalStars = chamberStars.reduce((a, b) => a + b, 0);
+        showToast(
+            `🏆 PARABÉNS, ARQUIMAGO MESTRE KAEL!<br><span style="font-size:0.92rem;">Você restaurou Alexandria Astral nas 7 Câmaras com ${totalStars}/21 Estrelas!</span>`,
+            true
+        );
+    }
+}
+
+function resetCurrentLevel() {
+    loadLevel(currentLevelIdx);
+}
+
+function closeIntroModal() {
+    document.getElementById('intro-modal').classList.add('hidden');
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function toggleHelpModal() {
+    document.getElementById('intro-modal').classList.remove('hidden');
+}
+
+function switchModalTab(tab) {
+    document.getElementById('modal-tab-howto').classList.toggle('hidden', tab !== 'howto');
+    document.getElementById('modal-tab-symbols').classList.toggle('hidden', tab !== 'symbols');
+    document.getElementById('tab-btn-howto').classList.toggle('active', tab === 'howto');
+    document.getElementById('tab-btn-symbols').classList.toggle('active', tab === 'symbols');
+}
+
+// =========================================================
+// 9. LOOP DE RENDERIZAÇÃO E ANIMAÇÕES 3D (Three.js)
+// =========================================================
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.getElapsedTime();
+
+    // Girar Anéis Giroscópicos do Astrolábio 3D
+    if (astroGyroRings[0]) {
+        astroGyroRings[0].rotation.z = t * 0.14;
+        astroGyroRings[0].rotation.x = Math.sin(t * 0.3) * 0.2;
+    }
+    if (astroGyroRings[1]) {
+        astroGyroRings[1].rotation.z = -t * 0.09;
+        astroGyroRings[1].rotation.y = Math.cos(t * 0.25) * 0.24;
+    }
+
+    // Girar cristais e atualizar feixes com partículas viajantes
+    crystalMeshes.forEach((c, idx) => {
+        c.rotation.y = t * 1.35 + idx;
+        if (c.userData.orbitRing) {
+            c.userData.orbitRing.rotation.z = -t * 2.4;
+        }
+        if (c !== draggedCrystal && !crystalAnimations.some(a => a.crystal === c)) {
+            const floatAmp = difficultyMode === 'arquimago' ? 0.0026 : 0.0013;
+            c.position.y += Math.sin(t * 2.6 + idx) * floatAmp;
+        }
+    });
+
+    updateEnergyTethers(t);
+
+    // Animar Astros de Constelação no Arco Superior
+    constellationMeshes.forEach((starObj, idx) => {
+        starObj.userData.gem.rotation.y = t * 1.9 + idx;
+        starObj.userData.gem.rotation.x = Math.sin(t * 1.5 + idx) * 0.3;
+        starObj.userData.halo.rotation.z = -t * 0.8;
+    });
+
+    // Animar pulsos de absorção nas Esferas quando um cristal entra nelas!
+    for (let i = spherePulses.length - 1; i >= 0; i--) {
+        const sp = spherePulses[i];
+        sp.elapsed += dt;
+        const p = Math.min(1, sp.elapsed / sp.duration);
+        const pulseWave = Math.sin(p * Math.PI);
+        sp.sphere.material.opacity = sp.sphere.userData.baseOpacity + pulseWave * 0.26;
+        if (sp.sphere.userData.wireMesh) {
+            sp.sphere.userData.wireMesh.material.opacity = 0.08 + pulseWave * 0.35;
+        }
+        if (p >= 1) {
+            sp.sphere.material.opacity = sp.sphere.userData.baseOpacity;
+            if (sp.sphere.userData.wireMesh) sp.sphere.userData.wireMesh.material.opacity = 0.08;
+            spherePulses.splice(i, 1);
+        }
+    }
+
+    // Atualizar animações de erro dos cristais
+    for (let i = crystalAnimations.length - 1; i >= 0; i--) {
+        const anim = crystalAnimations[i];
+        anim.elapsed += dt;
+        const progress = Math.min(1, anim.elapsed / anim.duration);
+
+        if (progress < 0.45) {
+            const shake = Math.sin(progress * 65) * 0.16;
+            anim.crystal.position.x = anim.startPos.x + shake;
+            anim.crystal.position.y = anim.startPos.y + Math.cos(progress * 65) * 0.1;
+        } else {
+            const flyT = (progress - 0.45) / 0.55;
+            const ease = 1 - Math.pow(1 - flyT, 3);
+            anim.crystal.position.lerpVectors(anim.startPos, anim.targetBenchPos, ease);
+        }
+
+        if (progress >= 1) {
+            anim.crystal.position.copy(anim.targetBenchPos);
+            crystalAnimations.splice(i, 1);
+            updateTutorialCoachUI();
+        }
+    }
+
+    // Atualizar partículas 3D
+    for (let i = activeParticles.length - 1; i >= 0; i--) {
+        const p = activeParticles[i];
+        p.position.x += p.userData.vx;
+        p.position.y += p.userData.vy;
+        p.position.z += p.userData.vz;
+        p.rotation.x += 0.1;
+        p.rotation.y += 0.1;
+        p.userData.life -= dt * 1.4;
+        p.material.opacity = Math.max(0, p.userData.life);
+        if (p.userData.life <= 0) {
+            fxGroup.remove(p);
+            activeParticles.splice(i, 1);
+        }
+    }
+
+    // Atualizar Ondas de Energia 3D (Shockwaves / Ripples)
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.userData.scale += dt * (sw.userData.maxScale || 6.5);
+        sw.userData.life -= dt * 1.35;
+        sw.scale.set(sw.userData.scale, sw.userData.scale, 1);
+        sw.material.opacity = Math.max(0, sw.userData.life);
+        if (sw.userData.life <= 0) {
+            fxGroup.remove(sw);
+            shockwaves.splice(i, 1);
+        }
+    }
+
+    // Pulsar esferas e girar malha geodésica interna
+    sphereMeshes.forEach((s, idx) => {
+        const scale = 1 + Math.sin(t * 1.5 + idx) * 0.01;
+        s.scale.set(scale, scale, scale);
+        if (s.userData.wireMesh) {
+            s.userData.wireMesh.rotation.y = -t * 0.16;
+            s.userData.wireMesh.rotation.x = t * 0.09;
+        }
+        if (s.userData.orbitTorus) {
+            s.userData.orbitTorus.rotation.z = t * 0.38;
+        }
+    });
+
+    starField.rotation.y = t * 0.02;
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Inicializar Jogo
+window.onload = () => {
+    loadLevel(0);
+    animate();
+};
+</script>
+</body>
+</html>
