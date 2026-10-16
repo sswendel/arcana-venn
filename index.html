@@ -1569,7 +1569,8 @@ function renderRunicSwitches(lvl) {
             starGroup.add(rayLine);
 
             // Rótulo compacto acima do Astro no topo
-            const starLabel = createTextSprite(sw.label.replace('★ ', ''), "rgba(14, 9, 30, 0.85)", "#7c68b0", 1.12, 0.26);
+            const mobileStarLabelScale = window.matchMedia("(max-width: 850px)").matches ? 1.55 : 1;
+            const starLabel = createTextSprite(sw.label.replace('★ ', ''), "rgba(14, 9, 30, 0.85)", "#7c68b0", 1.12 * mobileStarLabelScale, 0.26 * mobileStarLabelScale);
             starLabel.position.set(0, 0.38, 0);
             starGroup.add(starLabel);
 
