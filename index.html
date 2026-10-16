@@ -2209,11 +2209,23 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+function updateViewport() {
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = aspect;
+
+    // Mantém a largura do altar visível em retrato sem alterar o enquadramento no desktop.
+    const baseDistance = 10.4;
+    const referenceAspect = 0.95;
+    camera.position.z = aspect < referenceAspect
+        ? baseDistance * (referenceAspect / aspect)
+        : baseDistance;
+
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-});
+}
+
+updateViewport();
+window.addEventListener('resize', updateViewport);
 
 // Inicializar Jogo
 window.onload = () => {
