@@ -244,10 +244,59 @@
         .hidden { display: none !important; }
 
         @media (max-width: 850px) {
+            html, body { height: 100%; min-height: 100%; }
+            #ui-layer {
+                height: 100dvh; min-height: 100dvh; overflow-y: auto; overflow-x: hidden;
+                justify-content: flex-start; gap: 8px;
+                padding: max(8px, env(safe-area-inset-top)) 8px max(12px, env(safe-area-inset-bottom));
+                overscroll-behavior-y: contain;
+            }
+            #ui-layer > div:first-child { display: flex; flex-direction: column; gap: 8px; }
+            .top-bar { flex-direction: column; align-items: stretch; margin-bottom: 0; }
+            .chamber-pills { width: 100%; justify-content: center; }
+            .mode-bar { justify-content: center; flex-wrap: wrap; }
+            .hud-top { flex-direction: column; gap: 8px; }
+            .grimoire-panel { max-width: none; padding: 10px 12px; }
+            .right-column { width: 100%; max-width: none; align-items: stretch; }
+            .legend-panel { min-width: 0; }
+            #tutorial-coach, #crank-panel { width: 100%; }
+            #grimoire-diagnostic { max-width: none; }
+            .hud-bottom {
+                display: grid; grid-template-columns: 1fr; width: 100%;
+                gap: 10px; padding: 10px; flex: 0 0 auto; align-items: stretch;
+            }
+            .crystal-inspector { min-width: 0; max-width: none; }
+            #runic-altar-panel { width: 100%; }
+            .btn-group { flex-wrap: wrap; justify-content: center; }
+            .arcane-btn, .mode-btn, .chamber-pill, .rune-switch, .coach-mini-btn {
+                min-height: 42px; touch-action: manipulation;
+            }
+            .modal-overlay { padding: 12px; }
+            .modal-card {
+                max-height: calc(100dvh - 24px); overflow-y: auto;
+                padding: 18px 16px;
+            }
+            .modal-card h1 { font-size: clamp(1.4rem, 6vw, 1.8rem); }
             .tutorial-grid, .symbols-grid { grid-template-columns: 1fr; }
-            .grimoire-panel { max-width: 100%; }
-            #tutorial-coach { width: 100%; }
         }
+
+        @media (max-width: 480px) {
+            #ui-layer { padding-left: 6px; padding-right: 6px; }
+            .chamber-pills { gap: 4px; padding: 5px; }
+            .chamber-pill { flex: 1 1 auto; padding: 7px 6px; font-size: 0.7rem; }
+            .mode-bar { gap: 5px; padding: 7px; font-size: 0.72rem; }
+            .mode-btn { padding: 7px 8px; font-size: 0.7rem; }
+            .level-title { font-size: 1rem; }
+            .mission-text { font-size: 0.78rem; }
+            .math-rule { font-size: 0.76rem; overflow-wrap: anywhere; }
+            .runic-switches { width: 100%; }
+            .rune-switch { flex: 1 1 145px; justify-content: center; }
+            .arcane-btn { flex: 1 1 145px; padding: 10px; }
+            .modal-tabs { gap: 6px; }
+            .modal-tab { flex: 1 1 140px; min-height: 42px; }
+        }
+
+        #canvas-container canvas { touch-action: none; }
     </style>
     <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1703,8 +1752,8 @@ let isRotatingScene = false;
 let prevMouse = { x: 0, y: 0 };
 
 function getNormalizedMouse(e) {
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
     mouse.x = (clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(clientY / window.innerHeight) * 2 + 1;
     return { clientX, clientY };
@@ -1872,12 +1921,10 @@ function onPointerUp() {
     isRotatingScene = false;
 }
 
-window.addEventListener('mousedown', onPointerDown);
-window.addEventListener('mousemove', onPointerMove);
-window.addEventListener('mouseup', onPointerUp);
-window.addEventListener('touchstart', onPointerDown, { passive: false });
-window.addEventListener('touchmove', onPointerMove, { passive: false });
-window.addEventListener('touchend', onPointerUp);
+window.addEventListener('pointerdown', onPointerDown);
+window.addEventListener('pointermove', onPointerMove);
+window.addEventListener('pointerup', onPointerUp);
+window.addEventListener('pointercancel', onPointerUp);
 
 // =========================================================
 // 8. VALIDAÇÃO MATEMÁTICA, ESCUDOS DE MANA E ONDAS DE CHOQUE 3D
