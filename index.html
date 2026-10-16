@@ -1827,7 +1827,8 @@ function loadLevel(idx) {
         crystal.add(cRing);
         crystal.userData.orbitRing = cRing;
 
-        const label = createTextSprite(cData.label, "rgba(16, 10, 34, 0.92)", "#f5c542", 1.22, 0.3);
+        const mobileCrystalLabelScale = window.matchMedia("(max-width: 850px)").matches ? 1.55 : 1;
+        const label = createTextSprite(cData.label, "rgba(16, 10, 34, 0.92)", "#f5c542", 1.22 * mobileCrystalLabelScale, 0.3 * mobileCrystalLabelScale);
         label.position.set(0, -0.52, 0);
         crystal.add(label);
 
