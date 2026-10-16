@@ -167,6 +167,13 @@
         #runic-altar-panel {
             display: flex; flex-direction: column; align-items: center; gap: 3px;
         }
+
+        .grimoire-panel #runic-altar-panel {
+            align-items: flex-start; margin-top: 9px; padding-top: 8px;
+            border-top: 1px solid rgba(124, 104, 176, 0.38);
+        }
+        .grimoire-panel #runic-altar-title { line-height: 1.4; }
+        .grimoire-panel .runic-switches { justify-content: flex-start; }
         .runic-switches { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
         .rune-switch {
             background: rgba(24, 16, 48, 0.92); border: 1px solid #7c68b0;
@@ -327,6 +334,12 @@
                 <h2 class="level-title" id="ui-title">Pertinência Elemental</h2>
                 <div class="mission-text" id="ui-story">Carregando grimório...</div>
                 <div class="math-rule" id="ui-math">Regra Arcana: x ∈ A</div>
+
+        <!-- Constelação de Sintonia (Aciona os Astros de Luz no Arco Celeste Superior fora da plataforma!) -->
+        <div id="runic-altar-panel">
+            <div style="font-size:0.7rem; color:#f5c542; font-weight:bold; text-transform:uppercase; letter-spacing:0.6px;" id="runic-altar-title"><span id="runic-altar-subtitle">✨ Constelação de Sintonia (Acione os Astros Celestes no Arco Superior):</span></div>
+            <div class="runic-switches" id="runic-switches-container"></div>
+        </div>
             </div>
 
             <!-- Coluna Direita: Legenda + Rotação 360° + Guia do Tutorial (SÓ na Câmara 0!) + Manivela (SÓ na Câmara 4) -->
@@ -389,12 +402,6 @@
             <div id="inspector-text" style="font-size: 0.82rem; color: #fff; line-height: 1.32;">
                 Passe o mouse ou toque num cristal na base fixa para ler sua essência.
             </div>
-        </div>
-
-        <!-- Constelação de Sintonia (Aciona os Astros de Luz no Arco Celeste Superior fora da plataforma!) -->
-        <div id="runic-altar-panel">
-            <div style="font-size:0.7rem; color:#f5c542; font-weight:bold; text-transform:uppercase; letter-spacing:0.6px;" id="runic-altar-title"><span id="runic-altar-subtitle">✨ Constelação de Sintonia (Acione os Astros Celestes no Arco Superior):</span></div>
-            <div class="runic-switches" id="runic-switches-container"></div>
         </div>
 
         <!-- Botões de Ação -->
