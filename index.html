@@ -304,6 +304,62 @@
         }
 
         #canvas-container canvas { touch-action: none; }
+    
+        /* Painéis recolhíveis para celulares */
+        .mobile-panel-toggles { display: none; }
+
+        @media (max-width: 850px) {
+            #ui-layer {
+                padding-bottom: calc(76px + env(safe-area-inset-bottom));
+            }
+            .mobile-panel-toggles {
+                display: flex; align-items: center; gap: 6px; width: 100%;
+                position: sticky; top: 0; z-index: 7; overflow-x: auto;
+                padding: 5px; border: 1px solid rgba(124, 104, 176, 0.55);
+                border-radius: 11px; background: rgba(10, 6, 24, 0.94);
+                backdrop-filter: blur(10px); scrollbar-width: none;
+            }
+            .mobile-panel-toggles::-webkit-scrollbar { display: none; }
+            .mobile-panel-toggle {
+                flex: 0 0 auto; min-height: 40px; padding: 7px 10px;
+                border-radius: 8px; border: 1px solid #6b53a6;
+                background: rgba(35, 24, 65, 0.92); color: #e7ddf5;
+                font-size: 0.76rem; font-weight: 700; white-space: nowrap;
+                touch-action: manipulation;
+            }
+            .mobile-panel-toggle.active {
+                border-color: #00e5ff; background: #482080; color: #fff;
+                box-shadow: 0 0 10px rgba(0, 229, 255, 0.28);
+            }
+            #chamber-nav, #mode-panel, #mission-panel, #right-panel, #inspector-box {
+                display: none !important;
+            }
+            #chamber-nav.mobile-panel-open { display: flex !important; }
+            #mode-panel.mobile-panel-open { display: flex !important; }
+            #mission-panel.mobile-panel-open { display: block !important; }
+            #right-panel.mobile-panel-open { display: flex !important; }
+            #inspector-box.mobile-panel-open { display: flex !important; }
+            #actions-panel { display: contents !important; }
+            #actions-panel > .secondary { display: none !important; }
+            #actions-panel.mobile-panel-open {
+                display: flex !important; position: fixed; left: 8px; right: 8px;
+                bottom: calc(66px + env(safe-area-inset-bottom)); z-index: 9;
+                justify-content: center; padding: 8px; border-radius: 12px;
+                background: rgba(10, 6, 24, 0.96); border: 1px solid #6b53a6;
+                box-shadow: 0 8px 24px #0009;
+            }
+            #actions-panel.mobile-panel-open > .secondary { display: inline-flex !important; }
+            #btn-verify {
+                position: fixed; left: 10px; right: 10px;
+                bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 8;
+                width: calc(100% - 20px); min-height: 48px;
+            }
+            .hud-bottom {
+                display: contents !important; background: transparent !important;
+                border: 0 !important; box-shadow: none !important; padding: 0 !important;
+            }
+        }
+
     </style>
     <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -318,7 +374,7 @@
         <!-- Barra Superior Compacta -->
         <div class="top-bar interactive">
             <div class="chamber-pills" id="chamber-nav"></div>
-            <div class="mode-bar">
+            <div class="mode-bar" id="mode-panel">
                 <span style="color:#b8a6db; font-weight:bold;">Modo:</span>
                 <button class="mode-btn active" id="mode-normal-btn" onclick="setDifficultyMode('arcano')" title="Mostra dicas de divisibilidade no Olho de Venn e nomes descritivos nas Esferas">🔮 Arcano (Sem Cola)</button>
                 <button class="mode-btn" id="mode-hard-btn" onclick="setDifficultyMode('arquimago')" title="Notação matemática formal nas Esferas, cálculo mental puro no Inspetor e 3 Escudos de Mana!">🔥 Arquimago Mestre</button>
@@ -327,9 +383,18 @@
             </div>
         </div>
 
+        <div class="mobile-panel-toggles interactive" role="toolbar" aria-label="Painéis do jogo">
+            <button class="mobile-panel-toggle" id="mobile-current-chamber" data-mobile-target="chamber-nav" aria-controls="chamber-nav" aria-expanded="false" onclick="toggleMobilePanel('chamber-nav', this)">Câmara 0 ▾</button>
+            <button class="mobile-panel-toggle" data-mobile-target="mode-panel" aria-controls="mode-panel" aria-expanded="false" onclick="toggleMobilePanel('mode-panel', this)">Modo</button>
+            <button class="mobile-panel-toggle" data-mobile-target="mission-panel" aria-controls="mission-panel" aria-expanded="false" onclick="toggleMobilePanel('mission-panel', this)">Missão</button>
+            <button class="mobile-panel-toggle" data-mobile-target="right-panel" aria-controls="right-panel" aria-expanded="false" onclick="toggleMobilePanel('right-panel', this)">Esferas</button>
+            <button class="mobile-panel-toggle" data-mobile-target="inspector-box" aria-controls="inspector-box" aria-expanded="false" onclick="toggleMobilePanel('inspector-box', this)">Olho</button>
+            <button class="mobile-panel-toggle" data-mobile-target="actions-panel" aria-controls="actions-panel" aria-expanded="false" onclick="toggleMobilePanel('actions-panel', this)">Ações</button>
+        </div>
+
         <div class="hud-top">
             <!-- Painel da Câmara (Esquerda) -->
-            <div class="grimoire-panel interactive">
+            <div class="grimoire-panel interactive" id="mission-panel">
                 <div class="level-badge" id="ui-badge">Câmara 0 de 6 • Tutorial</div>
                 <h2 class="level-title" id="ui-title">Pertinência Elemental</h2>
                 <div class="mission-text" id="ui-story">Carregando grimório...</div>
@@ -343,7 +408,7 @@
             </div>
 
             <!-- Coluna Direita: Legenda + Rotação 360° + Guia do Tutorial (SÓ na Câmara 0!) + Manivela (SÓ na Câmara 4) -->
-            <div class="right-column interactive">
+            <div class="right-column interactive" id="right-panel">
                 <div class="legend-panel">
                     <div class="legend-title">Esferas em Órbita (Giro 360°)</div>
                     <div id="ui-spheres-legend"></div>
@@ -405,7 +470,7 @@
         </div>
 
         <!-- Botões de Ação -->
-        <div class="btn-group">
+        <div class="btn-group" id="actions-panel">
             <button class="arcane-btn secondary" id="btn-toggle-coach" onclick="toggleCoachPanel()" title="Mostrar/Ocultar Guia do Mentor">🎓 Guia Passo a Passo</button>
             <button class="arcane-btn secondary" onclick="toggleHelpModal()">📜 Grimório (Ajuda)</button>
             <button class="arcane-btn secondary" onclick="resetCurrentLevel()">🔄 Reiniciar Cristais</button>
@@ -1100,7 +1165,20 @@ function prevTutorialStep() {
 
 function toggleCoachPanel() {
     if (currentLevelIdx === 0) {
-        document.getElementById('tutorial-coach').classList.toggle('hidden');
+        const coachEl = document.getElementById('tutorial-coach');
+        if (window.matchMedia('(max-width: 850px)').matches) {
+            const rightPanel = document.getElementById('right-panel');
+            if (!rightPanel.classList.contains('mobile-panel-open')) {
+                const panelButton = document.querySelector('[data-mobile-target="right-panel"]');
+                if (panelButton) {
+                    toggleMobilePanel('right-panel', panelButton);
+                    coachEl.classList.remove('hidden');
+                    updateTutorialCoachUI();
+                    return;
+                }
+            }
+        }
+        coachEl.classList.toggle('hidden');
         updateTutorialCoachUI();
     } else {
         const lvl = LEVELS[currentLevelIdx];
@@ -1370,6 +1448,22 @@ function updateEnergyTethers(timeSec = 0) {
 // =========================================================
 // 5. NAVEGAÇÃO, MODOS E ASTROS DE CONSTELAÇÃO (FORA DA PLATAFORMA!)
 // =========================================================
+function toggleMobilePanel(panelId, button) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const shouldOpen = !panel.classList.contains('mobile-panel-open');
+    document.querySelectorAll('.mobile-panel-open').forEach(el => el.classList.remove('mobile-panel-open'));
+    document.querySelectorAll('.mobile-panel-toggle').forEach(el => {
+        el.classList.remove('active');
+        el.setAttribute('aria-expanded', 'false');
+    });
+    if (shouldOpen) {
+        panel.classList.add('mobile-panel-open');
+        button.classList.add('active');
+        button.setAttribute('aria-expanded', 'true');
+    }
+}
+
 function renderChamberNav() {
     const nav = document.getElementById('chamber-nav');
     nav.innerHTML = '';
@@ -1385,6 +1479,8 @@ function renderChamberNav() {
     });
     const totalStars = chamberStars.reduce((a, b) => a + b, 0);
     document.getElementById('score-display').innerText = `⭐ ${totalStars}/21`;
+    const mobileChamberLabel = document.getElementById('mobile-current-chamber');
+    if (mobileChamberLabel) mobileChamberLabel.innerText = `${currentLevelIdx === 0 ? 'Tutorial' : `Câmara ${currentLevelIdx}`} ▾`;
 }
 
 function updateShieldsUI() {
